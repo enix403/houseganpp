@@ -15,12 +15,11 @@
 # limitations under the License.
 
 import json
-from collections import defaultdict
 
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw
 
 def filter_graphs(graphs, min_h=0.03, min_w=0.03):
     new_graphs = []
@@ -134,46 +133,6 @@ class FloorplanGraphDataset(Dataset):
         return rooms_mks, graph_nodes, graph_edges
 
 
-    def draw_masks(self, rms_type, fp_eds, eds_to_rms, im_size=256):
-        import math
-        # import webcolors
-        # full_img = Image.new("RGBA", (256, 256), (255, 255, 255, 0))  # Semitransparent background.
-        rms_masks = []
-        fp_mk = np.zeros((32, 32))
-        for k in range(len(rms_type)):
-            eds = []
-            for l, e_map in enumerate(eds_to_rms):
-                if k in e_map:
-                    eds.append(l)
-            rm_im = Image.new('L', (im_size, im_size))
-            rm_im = rm_im.filter(ImageFilter.MaxFilter(7))
-            dr = ImageDraw.Draw(rm_im)
-            poly = self.make_sequence(np.array([fp_eds[l][:4] for l in eds]))[0]
-            poly = [(im_size*x, im_size*y) for x, y in poly]
-            if len(poly) >= 2:
-                dr.polygon(poly, fill='white')
-            rm_im = rm_im.resize((32, 32)).filter(ImageFilter.MaxFilter(3))
-            rm_arr = np.array(rm_im)
-            inds = np.where(rm_arr>0)
-            fp_mk[inds] = k+1
-
-        # trick to remove overlap
-        for k in range(len(rms_type)):
-            rm_arr=np.ones((32,32))
-            rm_arr = np.zeros((32, 32))
-            inds = np.where(fp_mk==k+1)
-            rm_arr[inds] = 1.0
-            rms_masks.append(rm_arr)
-
-        plt.figure()
-        debug_arr = np.sum(np.array(rms_masks), 0)
-        debug_arr[debug_arr>0] = 255
-        im = Image.fromarray(debug_arr)
-        plt.imshow(im)
-        plt.show()
-
-        return rms_masks
-
     def make_sequence(self, edges):
         polys = []
         #print(edges)
@@ -221,23 +180,6 @@ class FloorplanGraphDataset(Dataset):
 
         return polys
 
-    def flip_and_rotate(self, v, flip, rot, shape=256.):
-        v = self.rotate(np.array((shape, shape)), v, rot)
-        if flip:
-            x, y = v
-            v = (shape/2-abs(shape/2-x), y) if x > shape/2 else (shape/2+abs(shape/2-x), y)
-        return v
-
-    # rotate coords
-    def rotate(self, image_shape, xy, angle):
-        org_center = (image_shape-1)/2.
-        rot_center = (image_shape-1)/2.
-        org = xy-org_center
-        a = np.deg2rad(angle)
-        new = np.array([org[0]*np.cos(a) + org[1]*np.sin(a),
-                -org[0]*np.sin(a) + org[1]*np.cos(a) ])
-        new = new+rot_center
-        return new
 
     def build_graph(self, rms_type, fp_eds, eds_to_rms, out_size=64):
 
@@ -319,142 +261,6 @@ class FloorplanGraphDataset(Dataset):
         rms_masks = np.array(rms_masks)
 
         return nodes, triples, rms_masks
-
-    def build_graph_door_as_dents(self, rms_type, fp_eds, eds_to_rms, out_size=128):
-
-            # create edges
-            triples = []
-            nodes = [x for x in rms_type if x != 15 and x != 17]
-
-            # doors to rooms
-            doors_inds = []
-            for k, r in enumerate(rms_type):
-                if r in [15, 17]:
-                    doors_inds.append(k)
-
-            # for each door compare against all rooms
-            door_to_rooms = defaultdict(list)
-            for d in doors_inds:
-                door_edges = eds_to_rms[d]
-                for r in range(len(nodes)):
-                    if r not in doors_inds:
-                        is_adjacent = any([True for e_map in eds_to_rms if (r in e_map) and (d in e_map)])
-                        if is_adjacent:
-                            door_to_rooms[d].append(r)
-
-
-            # encode connections
-            for k in range(len(nodes)):
-                for l in range(len(nodes)):
-                    if l > k:
-                        is_adjacent = any([True for d_key in door_to_rooms if (k in door_to_rooms[d_key]) and (l in door_to_rooms[d_key])])
-                        if is_adjacent:
-                            if 'train' in self.split:
-                                triples.append([k, 1, l])
-                            else:
-                                triples.append([k, 1, l])
-                        else:
-                            if 'train' in self.split:
-                                triples.append([k, -1, l])
-                            else:
-                                triples.append([k, -1, l])
-
-            # get rooms masks
-            eds_to_rms_tmp = []
-            for l in range(len(eds_to_rms)):
-                eds_to_rms_tmp.append([eds_to_rms[l][0]])
-
-            rms_masks = []
-            im_size = 256
-            # fp_mk = np.zeros((out_size, out_size))
-
-            for k in range(len(nodes)):
-
-                # add rooms
-                eds = []
-                for l, e_map in enumerate(eds_to_rms_tmp):
-                    if (k in e_map):
-                        eds.append(l)
-
-                # add doors
-                eds_door = []
-                for d in door_to_rooms:
-                    if k in door_to_rooms[d]:
-                        door = []
-                        for l, e_map in enumerate(eds_to_rms_tmp):
-                            if (d in e_map):
-                                door.append(l)
-                        eds_door.append(door)
-
-                # draw rooms
-                rm_im = Image.new('L', (im_size, im_size))
-                dr = ImageDraw.Draw(rm_im)
-                for eds_poly in [eds]:
-                    poly = self.make_sequence(np.array([fp_eds[l][:4] for l in eds_poly]))[0]
-                    poly = [(im_size*x, im_size*y) for x, y in poly]
-                    if len(poly) >= 2:
-                        dr.polygon(poly, fill='white')
-                    else:
-                        print("Empty room")
-                        exit(0)
-
-                # draw doors
-                doors_im = Image.new('L', (im_size, im_size))
-                dr_door = ImageDraw.Draw(doors_im)
-                for eds_poly in eds_door:
-                    poly = self.make_sequence(np.array([fp_eds[l][:4] for l in eds_poly]))[0]
-                    poly = [(im_size*x, im_size*y) for x, y in poly]
-                    if len(poly) >= 2:
-                        dr_door.polygon(poly, fill='white')
-                    else:
-                        print("Empty room")
-                        exit(0)
-
-                doors_im = doors_im.filter(ImageFilter.MinFilter(3)).resize((out_size, out_size))
-                doors_arr= np.array(doors_im)
-                rm_im = rm_im.filter(ImageFilter.MinFilter(3)).resize((out_size, out_size))
-                rm_arr = np.array(rm_im)
-                inds = np.where(rm_arr+doors_arr>0)
-                rm_arr[inds] = 1.0
-                rms_masks.append(rm_arr)
-
-                # deb = Image.fromarray(rm_arr)
-                # plt.imwhow(deb)
-                # plt.show()
-                # fp_mk[inds] = k+1
-
-            # # trick to remove overlap
-            # for k in range(len(nodes)):
-            #   rm_arr = np.zeros((out_size, out_size))
-            #   inds = np.where(fp_mk==k+1)
-            #   rm_arr[inds] = 1.0
-            #   rms_masks.append(rm_arr)
-
-
-            # convert to array
-            nodes = np.array(nodes)
-            triples = np.array(triples)
-            rms_masks = np.array(rms_masks)
-
-            return nodes, triples, rms_masks
-
-def is_adjacent(box_a, box_b, threshold=0.03):
-
-    x0, y0, x1, y1 = box_a
-    x2, y2, x3, y3 = box_b
-
-    h1, h2 = x1-x0, x3-x2
-    w1, w2 = y1-y0, y3-y2
-
-    xc1, xc2 = (x0+x1)/2.0, (x2+x3)/2.0
-    yc1, yc2 = (y0+y1)/2.0, (y2+y3)/2.0
-
-    delta_x = np.abs(xc2-xc1) - (h1 + h2)/2.0
-    delta_y = np.abs(yc2-yc1) - (w1 + w2)/2.0
-
-    delta = max(delta_x, delta_y)
-
-    return delta < threshold
 
 def one_hot_embedding(labels, num_classes=19):
     """Embedding labels to one-hot form.
