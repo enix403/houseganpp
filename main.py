@@ -7,9 +7,7 @@ import torchvision.transforms as transforms
 from torchvision.utils import save_image
 
 from minimal.arch import Generator
-
 from minimal.dataset import FloorplanGraphDataset, floorplan_collate_fn
-
 from minimal.utils import init_input, draw_masks, draw_graph
 
 PRETRAINED_PATH = "./checkpoints/pretrained.pth"

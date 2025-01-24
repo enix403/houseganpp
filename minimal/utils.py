@@ -14,19 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import random
-
 import numpy as np
 import torch
 import webcolors
 import networkx as nx
 import cv2
 from PIL import Image, ImageDraw
-from pygraphviz import *
 import matplotlib.pyplot as plt
 
 cv2.setNumThreads(0)
-EXP_ID = random.randint(0, 1000000)
 
 ROOM_CLASS = {
     "living_room": 1,
@@ -42,9 +38,7 @@ ROOM_CLASS = {
     "unknown": 16,
     "interior_door": 17,
 }
-CLASS_ROM = {}
-for x, y in ROOM_CLASS.items():
-    CLASS_ROM[y] = x
+
 ID_COLOR = {
     1: "#EE4D4D",
     2: "#C67C7B",
