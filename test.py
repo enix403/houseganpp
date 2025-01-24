@@ -1,36 +1,19 @@
 import argparse
 import os
 import numpy as np
-import math
-import sys
-import random
 
+import torch
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
 
-from dataset.floorplan_dataset_maps_functional_high_res import FloorplanGraphDataset, floorplan_collate_fn
+from dataset.floorplan_dataset_maps_functional_high_res import (
+    FloorplanGraphDataset,
+    floorplan_collate_fn
+)
 
-from torch.utils.data import DataLoader
-from torchvision import datasets
-from torch.autograd import Variable
-
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.autograd as autograd
-import torch
-from PIL import Image, ImageDraw, ImageFont
-import svgwrite
 from models.models import Generator
-# from models.models_improved import Generator
 
-from misc.utils import _init_input, ID_COLOR, draw_masks, draw_graph, estimate_graph
-from collections import defaultdict
-import matplotlib.pyplot as plt
-import networkx as nx
-import glob
-import cv2
-import webcolors
-import time
+from misc.utils import _init_input, draw_masks, draw_graph
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--n_cpu", type=int, default=16, help="number of cpu threads to use during batch generation")
