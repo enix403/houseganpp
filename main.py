@@ -58,25 +58,36 @@ def _infer(graph, model, prev_state=None):
 # for i, sample in enumerate(fp_loader):
 if True:
     i, sample = next(enumerate(fp_loader))
-    # draw real graph and groundtruth
+
+    # mks (R, 64, 64) = GT segmentation mask per room
+    # nds (R, 18) = one hot encoding per room
+    # eds (E, 3) = per edge [node_1, -1 / 1 ???, node_2]
     mks, nds, eds, _, _ = sample
+
+    # (R,) undo one hot encoding (0-index based)
     real_nodes = np.where(nds.detach().cpu()==1)[-1]
     graph = [nds, eds]
+    # true_graph_obj: networkx graph
+    # graph_im: PIL graph image
     true_graph_obj, graph_im = draw_graph([real_nodes, eds.detach().cpu().numpy()])
     graph_im.save('./{}/graph_{}.png'.format(OUT_PATH, i)) # save graph
 
     # add room types incrementally
     _types = sorted(list(set(real_nodes)))
     selected_types = [_types[:k+1] for k in range(10)]
-    os.makedirs('./{}/'.format(OUT_PATH), exist_ok=True)
     _round = 0
     
     # initialize layout
-    state = {'masks': None, 'fixed_nodes': []}
+    state = {
+        'masks': None,
+        'fixed_nodes': []
+    }
+
     masks = _infer(graph, model, state)
-    im0 = draw_masks(masks.copy(), real_nodes)
-    im0 = torch.tensor(np.array(im0).transpose((2, 0, 1)))/255.0 
-    # save_image(im0, './{}/fp_init_{}.png'.format(OUT_PATH, i), nrow=1, normalize=False) # visualize init image
+    # im0 = draw_masks(masks.copy(), real_nodes)
+    # im0 = torch.tensor(np.array(im0).transpose((2, 0, 1)))/255.0 
+    # # visualize init image
+    # save_image(im0, './{}/fp_init_{}.png'.format(OUT_PATH, i), nrow=1, normalize=False)
 
     # generate per room type
     for _iter, _types in enumerate(selected_types):
