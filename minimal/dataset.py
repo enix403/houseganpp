@@ -22,25 +22,6 @@ from torch.utils.data import Dataset
 from PIL import Image, ImageDraw
 
 
-def filter_graphs(graphs, min_h=0.03, min_w=0.03):
-    new_graphs = []
-    for g in graphs:
-
-        # retrieve data
-        rooms_type = g[0]
-        rooms_bbs = g[1]
-
-        # discard broken samples
-        check_none = np.sum([bb is None for bb in rooms_bbs])
-        check_node = np.sum([nd == 0 for nd in rooms_type])
-        if (len(rooms_type) == 0) or (check_none > 0) or (check_node > 0):
-            continue
-
-        # update graph
-        new_graphs.append(g)
-    return new_graphs
-
-
 class FloorplanGraphDataset(Dataset):
     def __init__(self, data_path, transform=None, target_set=8, split="train"):
         super(Dataset, self).__init__()
