@@ -46,12 +46,8 @@ os.makedirs(opt.out, exist_ok=True)
 
 # Initialize generator and discriminator
 model = Generator()
-model.load_state_dict(torch.load(opt.checkpoint), strict=True)
+model.load_state_dict(torch.load(opt.checkpoint, map_location=torch.device('cpu')), strict=True)
 model = model.eval()
-
-# Initialize variables
-if torch.cuda.is_available():
-    model.cuda()
 
 # initialize dataset iterator
 fp_dataset_test = FloorplanGraphDataset(opt.data_path, transforms.Normalize(mean=[0.5], std=[0.5]), split='test')
@@ -68,7 +64,7 @@ def _infer(graph, model, prev_state=None):
     z, given_masks_in, given_nds, given_eds = _init_input(graph, prev_state)
     # run inference model
     with torch.no_grad():
-        masks = model(z.to('cuda'), given_masks_in.to('cuda'), given_nds.to('cuda'), given_eds.to('cuda'))
+        masks = model(z, given_masks_in, given_nds, given_eds)
         masks = masks.detach().cpu().numpy()
     return masks
 

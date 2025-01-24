@@ -29,6 +29,8 @@ Training models
 - Run [this script](https://github.com/sepidsh/Housegan-data-reader) for processing the dataset and extracting JSON files.
 - The extracted JSON files serves directly as input to our dataloader.
 
+- The python version used is **3.9.21**
+
 Citation
 ------
 Please consider citing our work.
