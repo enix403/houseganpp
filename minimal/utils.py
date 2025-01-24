@@ -155,14 +155,6 @@ def draw_graph(g_true):
                 G_true.add_edges_from([(k, -1)])
             edge_color.append("#727171")
 
-    #     # # visualization - debug
-    #     print(len(node_size))
-    #     print(len(colors_H))
-    #     print(len(linewidths))
-    #     print(G_true.nodes())
-    #     print(g_true[0])
-    #     print(len(edgecolors))
-
     plt.figure()
     pos = nx.nx_agraph.graphviz_layout(G_true, prog="neato")
     nx.draw(
@@ -195,9 +187,11 @@ def fix_nodes(prev_mks, ind_fixed_nodes):
     ind_not_fixed_nodes = torch.tensor(
         [k for k in range(given_masks.shape[0]) if k not in ind_fixed_nodes]
     )
+
     ## Set non fixed masks to -1.0
     given_masks[ind_not_fixed_nodes.long()] = -1.0
     given_masks = given_masks.unsqueeze(1)
+    
     ## Add channel to indicate given nodes
     inds_masks = torch.zeros_like(given_masks)
     inds_masks[ind_not_fixed_nodes.long()] = 0.0
