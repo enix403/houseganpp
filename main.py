@@ -6,12 +6,13 @@ import torch
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
 
-from dataset.floorplan_dataset_maps_functional_high_res import (
+from runnable.arch import Generator
+
+from runnable.dataset import (
     FloorplanGraphDataset,
     floorplan_collate_fn
 )
 
-from models.models import Generator
 from misc.utils import _init_input, draw_masks, draw_graph
 
 PRETRAINED_PATH = "./checkpoints/pretrained.pth"
