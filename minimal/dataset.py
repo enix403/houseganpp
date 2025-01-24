@@ -99,7 +99,6 @@ class FloorplanGraphDataset(Dataset):
                 print("ERR")
                 exit(0)
         self.transform = transform
-        print(len(self.subgraphs))
 
     def __len__(self):
         return len(self.subgraphs)
