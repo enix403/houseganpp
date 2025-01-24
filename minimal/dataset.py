@@ -23,62 +23,30 @@ from PIL import Image, ImageDraw
 
 
 class FloorplanGraphDataset(Dataset):
-    def __init__(self, data_path, transform=None, target_set=8, split="train"):
+    def __init__(self, data_path, transform=None, target_set=8, split="test"):
         super(Dataset, self).__init__()
+
         self.split = split
         self.subgraphs = []
         self.target_set = target_set
-        f1 = open(data_path, "r")
-        lines = f1.readlines()
-        h = 0
+
+        with open(data_path, "r") as f1:
+            lines = f1.readlines()
+            lines = list(map(lambda x: x.strip(), lines))
+
         for line in lines:
-            a = []
-            h = h + 1
-            if split == "train":
-                if h % 1 == 0:
-                    with open(line[:-1]) as f2:
-                        rms_type, fp_eds, rms_bbs, eds_to_rms, eds_to_rms_tmp = reader(
-                            line[:-1]
-                        )
-                        fp_size = len([x for x in rms_type if x != 15 and x != 17])
-                        if fp_size != target_set:
-                            a.append(rms_type)
-                            a.append(rms_bbs)
-                            a.append(fp_eds)
-                            a.append(eds_to_rms)
-                            a.append(eds_to_rms_tmp)
-                            self.subgraphs.append(a)
-                self.augment = True
-            elif split == "eval":
-                if h % 1 == 0:
-                    with open(line[:-1]) as f2:
-                        rms_type, fp_eds, rms_bbs, eds_to_rms, eds_to_rms_tmp = reader(
-                            line[:-1]
-                        )
-                        fp_size = len([x for x in rms_type if x != 15 and x != 17])
-                        if fp_size == target_set:
-                            a.append(rms_type)
-                            a.append(rms_bbs)
-                            a.append(fp_eds)
-                            a.append(eds_to_rms)
-                            a.append(eds_to_rms_tmp)
-                            self.subgraphs.append(a)
-                self.augment = False
-            elif split == "test":
-                if h % 1 == 0:
-                    with open(line[:-1]) as f2:
-                        rms_type, fp_eds, rms_bbs, eds_to_rms, eds_to_rms_tmp = reader(
-                            line[:-1]
-                        )
-                        a.append(rms_type)
-                        a.append(rms_bbs)
-                        a.append(fp_eds)
-                        a.append(eds_to_rms)
-                        a.append(eds_to_rms_tmp)
-                        self.subgraphs.append(a)
-            else:
-                print("ERR")
-                exit(0)
+            rms_type, fp_eds, rms_bbs, eds_to_rms, eds_to_rms_tmp = reader(
+                line
+            )
+
+            self.subgraphs.append([
+                rms_type,
+                rms_bbs,
+                fp_eds,
+                eds_to_rms,
+                eds_to_rms_tmp,
+            ])
+
         self.transform = transform
 
     def __len__(self):
