@@ -6,14 +6,14 @@ import torch
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
 
-from runnable.arch import Generator
+from minimal.arch import Generator
 
-from runnable.dataset import (
+from minimal.dataset import (
     FloorplanGraphDataset,
     floorplan_collate_fn
 )
 
-from runnable.utils import (
+from minimal.utils import (
     init_input,
     draw_masks,
     draw_graph
