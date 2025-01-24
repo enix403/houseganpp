@@ -13,7 +13,11 @@ from runnable.dataset import (
     floorplan_collate_fn
 )
 
-from misc.utils import _init_input, draw_masks, draw_graph
+from runnable.utils import (
+    init_input,
+    draw_masks,
+    draw_graph
+)
 
 PRETRAINED_PATH = "./checkpoints/pretrained.pth"
 DATA_PATH = "./data/sample_list.txt"
@@ -44,7 +48,7 @@ fp_loader = torch.utils.data.DataLoader(
 def _infer(graph, model, prev_state=None):
     
     # configure input to the network
-    z, given_masks_in, given_nds, given_eds = _init_input(graph, prev_state)
+    z, given_masks_in, given_nds, given_eds = init_input(graph, prev_state)
     # run inference model
     with torch.no_grad():
         masks = model(z, given_masks_in, given_nds, given_eds)
