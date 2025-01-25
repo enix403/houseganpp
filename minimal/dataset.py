@@ -97,16 +97,19 @@ class FloorplanGraphDataset(Dataset):
 
     def make_sequence(
         self,
+        # np.array
+        # bounding boxes [x1, y1, x2, y2] for each egde
         # (E, 4)
         edges,
     ):
         polys = []
-        # print(edges)
+        
         v_curr = tuple(edges[0][:2])
         e_ind_curr = 0
         e_visited = [0]
         seq_tracker = [v_curr]
         find_next = False
+
         while len(e_visited) < len(edges):
             if find_next == False:
                 if v_curr == tuple(edges[e_ind_curr][2:]):
