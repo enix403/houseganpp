@@ -55,15 +55,18 @@ class FloorplanGraphDataset(Dataset):
     def __getitem__(self, index):
 
         graph = self.subgraphs[index]
+
         rms_type = graph[0]
         rms_bbs = graph[1]
         fp_eds = graph[2]
         eds_to_rms = graph[3]
         eds_to_rms_tmp = graph[4]
-        rms_bbs = np.array(rms_bbs)
-        fp_eds = np.array(fp_eds)
+
+        # rms_bbs = np.array(rms_bbs)
+        # fp_eds = np.array(fp_eds)
 
         # extract boundary box and centralize
+        # ------
         tl = np.min(rms_bbs[:, :2], 0)
         br = np.max(rms_bbs[:, 2:], 0)
         shift = (tl + br) / 2.0 - 0.5
@@ -71,11 +74,12 @@ class FloorplanGraphDataset(Dataset):
         rms_bbs[:, 2:] -= shift
         fp_eds[:, :2] -= shift
         fp_eds[:, 2:] -= shift
-        tl -= shift
-        br -= shift
-        eds_to_rms_tmp = []
-        for l in range(len(eds_to_rms)):
-            eds_to_rms_tmp.append([eds_to_rms[l][0]])
+        # tl -= shift
+        # br -= shift
+        # eds_to_rms_tmp = []
+        # for l in range(len(eds_to_rms)):
+        #     eds_to_rms_tmp.append([eds_to_rms[l][0]])
+        # ------
 
         # build input graph
         graph_nodes, graph_edges, rooms_mks = self.build_graph(
@@ -88,6 +92,7 @@ class FloorplanGraphDataset(Dataset):
         graph_edges = torch.LongTensor(graph_edges)
         rooms_mks = torch.FloatTensor(rooms_mks)
         rooms_mks = self.transform(rooms_mks)
+        
         return rooms_mks, graph_nodes, graph_edges
 
     def make_sequence(self, edges):
