@@ -269,22 +269,34 @@ def floorplan_collate_fn(batch):
     return all_rooms_mks, all_nodes, all_edges, all_node_to_sample, all_edge_to_sample
 
 
+# Returns (as tuple)
+#   rms_type: "room_type" from file
+#   rms_bbs: (R, 4): "boxes" from file, but centralized
+#   fp_eds: (E, 4): "edges" from file, but centralized
+#   eds_to_rms: list[list[int]] "ed_rm" from file
+#   eds_to_rms_tmp: eds_to_rms but the inner list truncated to length 1
+#                   i.e eds_to_rms_tmp[i][0] == eds_to_rms[i][0] for every i
 def reader(filename):
     with open(filename) as f:
         # open file
         info = json.load(f)
 
         # read from file
-        rms_bbs = np.asarray(info["boxes"])
-        fp_eds = info["edges"]
+        # rms_bbs = np.asarray(info["boxes"])
+        # fp_eds = info["edges"]
+        # rms_type = info["room_type"]
+        # eds_to_rms = info["ed_rm"]
+
         rms_type = info["room_type"]
+        rms_bbs = np.array(info["boxes"])
+        fp_eds = np.array(info["edges"])
         eds_to_rms = info["ed_rm"]
 
         # Count rooms that are not equal to 17 (interior_door)
-        s_r = 0
-        for rmk in range(len(rms_type)):
-            if rms_type[rmk] != 17:
-                s_r = s_r + 1
+        # s_r = 0
+        # for rmk in range(len(rms_type)):
+        #     if rms_type[rmk] != 17:
+        #         s_r = s_r + 1
 
         # Convert bounding boxes from range [0,256] to range [0,1]
         rms_bbs = np.array(rms_bbs) / 256.0
@@ -298,8 +310,8 @@ def reader(filename):
         tl = np.min(rms_bbs[:, :2], 0)
         br = np.max(rms_bbs[:, 2:], 0)
 
-        # Make the center of the overall bounding box (0.5, 0.5)
-        # i.e centralize the floor plan 
+        # Shift the center of the overall bounding box to be at (0.5, 0.5)
+        # i.e centralize the floor plan
         shift = (tl + br) / 2.0 - 0.5
         rms_bbs[:, :2] -= shift
         rms_bbs[:, 2:] -= shift
@@ -309,8 +321,11 @@ def reader(filename):
         # tl -= shift
         # br -= shift
 
-        eds_to_rms_tmp = []
-        for l in range(len(eds_to_rms)):
-            eds_to_rms_tmp.append([eds_to_rms[l][0]])
-            
+        # eds_to_rms_tmp = []
+        # for l in range(len(eds_to_rms)):
+            # eds_to_rms_tmp.append([eds_to_rms[l][0]])
+
+        # eds_to_rms but the inner list truncated to length 1
+        eds_to_rms_tmp = [ar[:1] for ar in eds_to_rms]
+
         return rms_type, fp_eds, rms_bbs, eds_to_rms, eds_to_rms_tmp
