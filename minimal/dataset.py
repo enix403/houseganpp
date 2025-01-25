@@ -92,10 +92,14 @@ class FloorplanGraphDataset(Dataset):
         graph_edges = torch.LongTensor(graph_edges)
         rooms_mks = torch.FloatTensor(rooms_mks)
         rooms_mks = self.transform(rooms_mks)
-        
+
         return rooms_mks, graph_nodes, graph_edges
 
-    def make_sequence(self, edges):
+    def make_sequence(
+        self,
+        # (E, 4)
+        edges,
+    ):
         polys = []
         # print(edges)
         v_curr = tuple(edges[0][:2])
@@ -145,31 +149,49 @@ class FloorplanGraphDataset(Dataset):
     def build_graph(self, rms_type, fp_eds, eds_to_rms, out_size=64):
 
         # create edges
-        triples = []
-        nodes = rms_type
+        # triples = []
+        # nodes = rms_type
 
         # encode connections
+        # for k in range(len(nodes)):
+        #     for l in range(len(nodes)):
+        #         if l > k:
+        #             is_adjacent = any(
+        #                 [True for e_map in eds_to_rms if (l in e_map) and (k in e_map)]
+        #             )
+        #             if is_adjacent:
+        #                 triples.append([k, 1, l])
+        #             else:
+        #                 triples.append([k, -1, l])
+
+
+        # ------------
+
+        # a 3-length list for each pair of nodes (a, b) such
+        # that each item is
+        #   [a,  1, b] if a is connected to b
+        #   [a, -1, b] if a is not connected to b
+        triples = []
+
+        nodes = rms_type
         for k in range(len(nodes)):
-            for l in range(len(nodes)):
-                if l > k:
-                    is_adjacent = any(
-                        [True for e_map in eds_to_rms if (l in e_map) and (k in e_map)]
-                    )
-                    if is_adjacent:
-                        if "train" in self.split:
-                            triples.append([k, 1, l])
-                        else:
-                            triples.append([k, 1, l])
-                    else:
-                        if "train" in self.split:
-                            triples.append([k, -1, l])
-                        else:
-                            triples.append([k, -1, l])
+            for l in range(k + 1, len(nodes)):
+                is_adjacent = False
+                for edge in eds_to_rms:
+                    if (l in edge) and (k in edge):
+                        is_adjacent = True
+                        break
+
+                triples.append([k, 1 if is_adjacent else -1, l])
+
+        # ------------
 
         # get rooms masks
-        eds_to_rms_tmp = []
-        for l in range(len(eds_to_rms)):
-            eds_to_rms_tmp.append([eds_to_rms[l][0]])
+        # eds_to_rms_tmp = []
+        # for l in range(len(eds_to_rms)):
+            # eds_to_rms_tmp.append([eds_to_rms[l][0]])
+
+        # ------------
 
         rms_masks = []
         im_size = 256
@@ -178,10 +200,13 @@ class FloorplanGraphDataset(Dataset):
         for k in range(len(nodes)):
 
             # add rooms and doors
-            eds = []
-            for l, e_map in enumerate(eds_to_rms_tmp):
-                if k in e_map:
-                    eds.append(l)
+            # eds = []
+            # for l, e_map in enumerate(eds_to_rms_tmp):
+            #     if k == e_map[0]:
+            #         eds.append(l)
+
+            # Index of edges from eds_to_rms which have node k as their first node
+            eds = [i for i, inner in enumerate(eds_to_rms) if inner[0] == k]
 
             # draw rooms
             rm_im = Image.new("L", (im_size, im_size))
@@ -197,18 +222,12 @@ class FloorplanGraphDataset(Dataset):
                     print("Empty room")
                     exit(0)
 
-            # if rms_type[k] == 15 and rms_type[k] == 17:
-            #   rm_im = rm_im.filter(ImageFilter.MinFilter(5))
-
             rm_im = rm_im.resize((out_size, out_size))
             rm_arr = np.array(rm_im)
             inds = np.where(rm_arr > 0)
             rm_arr[inds] = 1.0
             rms_masks.append(rm_arr)
 
-            # deb = Image.fromarray(rm_arr)
-            # plt.imwhow(deb)
-            # plt.show()
             if rms_type[k] != 15 and rms_type[k] != 17:
                 fp_mk[inds] = k + 1
 
