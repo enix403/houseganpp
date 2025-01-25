@@ -271,29 +271,46 @@ def floorplan_collate_fn(batch):
 
 def reader(filename):
     with open(filename) as f:
+        # open file
         info = json.load(f)
+
+        # read from file
         rms_bbs = np.asarray(info["boxes"])
         fp_eds = info["edges"]
         rms_type = info["room_type"]
         eds_to_rms = info["ed_rm"]
+
+        # Count rooms that are not equal to 17 (interior_door)
         s_r = 0
         for rmk in range(len(rms_type)):
             if rms_type[rmk] != 17:
                 s_r = s_r + 1
-        # print("eds_ro",eds_to_rms)
+
+        # Convert bounding boxes from range [0,256] to range [0,1]
         rms_bbs = np.array(rms_bbs) / 256.0
         fp_eds = np.array(fp_eds) / 256.0
+
+        # discard last 2 number of fp_eds
+        # new shape: (*, 4)
         fp_eds = fp_eds[:, :4]
+
+        # TL and BR of the global bounding box of the masks
         tl = np.min(rms_bbs[:, :2], 0)
         br = np.max(rms_bbs[:, 2:], 0)
+
+        # Make the center of the overall bounding box (0.5, 0.5)
+        # i.e centralize the floor plan 
         shift = (tl + br) / 2.0 - 0.5
         rms_bbs[:, :2] -= shift
         rms_bbs[:, 2:] -= shift
         fp_eds[:, :2] -= shift
         fp_eds[:, 2:] -= shift
-        tl -= shift
-        br -= shift
+
+        # tl -= shift
+        # br -= shift
+
         eds_to_rms_tmp = []
         for l in range(len(eds_to_rms)):
             eds_to_rms_tmp.append([eds_to_rms[l][0]])
+            
         return rms_type, fp_eds, rms_bbs, eds_to_rms, eds_to_rms_tmp
