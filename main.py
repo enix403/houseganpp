@@ -21,14 +21,12 @@ model.load_state_dict(
 )
 model = model.eval()
 
-def _infer(graph, model, prev_state=None):
-    z, given_masks_in, given_nds, given_eds = init_input(graph, prev_state)
+@torch.no_grad()
+def _infer(nds, eds, prev_state=None):
+    z, masks_in = init_input(nds, prev_state)
+    masks = model(z, masks_in, nds, eds)
 
-    with torch.no_grad():
-        masks = model(z, given_masks_in, given_nds, given_eds)
-        masks = masks.detach().cpu().numpy()
-
-    return masks
+    return masks.detach().numpy()
 
 NUM_ITERS = 10
 
@@ -41,7 +39,6 @@ sample = next(iter(fp_dataset))
 # nds (graph_nodes) (R, 18) = one hot encoding per room
 # eds (graph_edges) (E, 3) = per edge [node_1, -1 / 1, node_2]
 _, nds, eds = sample
-graph = [nds, eds]
 
 rms_type_z = np.where(nds.detach().cpu() == 1)[1]
 _types = sorted(list(set(rms_type_z)))
@@ -52,7 +49,7 @@ selected_types = [_types[:k+1] for k in range(NUM_ITERS)]
 state = { "masks": None, "fixed_nodes": [] }
 
 # (R, 64, 64): mask per room
-masks = _infer(graph, model, state)
+masks = _infer(nds, eds, state)
 
 # generate per room type
 for _types in selected_types:
@@ -64,14 +61,14 @@ for _types in selected_types:
     ])
 
     state = { "masks": masks, "fixed_nodes": fixed_nodes }
-    masks = _infer(graph, model, state)
+    masks = _infer(nds, eds, state)
 
 # -----
 
 # save final floorplans
-# imk = draw_masks(masks.copy(), rms_type_z)
-# imk = torch.tensor(np.array(imk).transpose((2, 0, 1))) / 255.0
-# save_image(imk, "./{}/fp_final_{}.png".format(OUT_PATH, i), nrow=1, normalize=False)
+imk = draw_masks(masks.copy(), rms_type_z)
+imk = torch.tensor(np.array(imk).transpose((2, 0, 1))) / 255.0
+save_image(imk, "./{}/fp_final_{}.png".format(OUT_PATH, i), nrow=1, normalize=False)
 
 # -----
 
