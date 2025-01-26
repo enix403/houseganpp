@@ -59,51 +59,51 @@ def _infer(nds, eds, masks=None, fixed_nodes=[]):
     next_masks = model(z, fixed_masks, nds, eds)
     return next_masks.detach()
 
-NUM_ITERS = 10
+def generate_plan(nds, eds, num_iters=10):
+    # nds (graph_nodes) (R, 18) = one hot encoding per room
+    # eds (graph_edges) (E, 3) = per edge [node_1, -1 / 1, node_2]
 
-fp_dataset = FloorplanGraphDataset(DATA_PATH)
+    rms_type_z = np.where(nds == 1)[1]
+    _types = sorted(list(set(rms_type_z)))
+    selected_types = [_types[:k+1] for k in range(num_iters)]
 
-i = 0
-sample = next(iter(fp_dataset))
+    # (R, 64, 64): mask per room
+    masks = _infer(nds, eds, masks=None, fixed_nodes=[])
 
-# mks (rooms_mks)   (R, 64, 64) = GT segmentation mask per room
-# nds (graph_nodes) (R, 18) = one hot encoding per room
-# eds (graph_edges) (E, 3) = per edge [node_1, -1 / 1, node_2]
-_, nds, eds = sample
+    # generate per room type
+    for _types in selected_types:
 
-rms_type_z = np.where(nds == 1)[1]
-_types = sorted(list(set(rms_type_z)))
-selected_types = [_types[:k+1] for k in range(NUM_ITERS)]
+        # list[int], indexes of rooms to fix
+        fixed_nodes = np.concatenate([
+            np.where(rms_type_z == _t)[0]
+            for _t in _types
+        ])
 
-# -------
+        masks = _infer(nds, eds, masks=masks, fixed_nodes=fixed_nodes)
+
+    masks = masks.numpy()
+
+    return masks
+
 
 print("Starting generation")
 
-# (R, 64, 64): mask per room
-masks = _infer(nds, eds, masks=None, fixed_nodes=[])
+fp_dataset = FloorplanGraphDataset(DATA_PATH)
+sample = next(iter(fp_dataset))
+_, nds, eds = sample
 
-# generate per room type
-for _types in selected_types:
-
-    # list[int], indexes of rooms to fix
-    fixed_nodes = np.concatenate([
-        np.where(rms_type_z == _t)[0]
-        for _t in _types
-    ])
-
-    masks = _infer(nds, eds, masks=masks, fixed_nodes=fixed_nodes)
-
-masks = masks.numpy()
-# -----
+masks = generate_plan(nds, eds)
 
 # save final floorplans
-imk = draw_masks(masks.copy(), rms_type_z)
+imk = draw_masks(masks.copy(), np.where(nds == 1)[1])
 imk = torch.tensor(np.array(imk).transpose((2, 0, 1))) / 255.0
-save_image(imk, "./{}/fp_final_{}.png".format(OUT_PATH, i), nrow=1, normalize=False)
+save_image(imk, "./{}/fp_final_0.png".format(OUT_PATH), nrow=1, normalize=False)
 
 print("Done")
 
 # -----
+
+
 
 # rms_type_z = np.where(nds.detach().cpu() == 1)[-1]
 # true_graph_obj: networkx graph
