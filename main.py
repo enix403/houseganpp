@@ -28,7 +28,6 @@ print("Done")
 
 # -----
 
-
 # rms_type_z = np.where(nds.detach().cpu() == 1)[-1]
 # true_graph_obj: networkx graph
 # true_graph_obj, graph_im = draw_graph([rms_type_z, eds.detach().cpu().numpy()])

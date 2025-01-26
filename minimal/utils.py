@@ -61,6 +61,7 @@ def draw_masks(masks, real_nodes, im_size=256):
     bg_img = Image.new(
         "RGBA", (im_size, im_size), (255, 255, 255, 255)
     )  # Semitransparent background.
+    
     for m, nd in zip(masks, real_nodes):
 
         # resize map
