@@ -3,7 +3,6 @@ import argparse
 import numpy as np
 
 import torch
-import torchvision.transforms as transforms
 from torchvision.utils import save_image
 
 from minimal.arch import Generator
@@ -24,9 +23,7 @@ model.load_state_dict(
 model = model.eval()
 
 # initialize dataset iterator
-fp_dataset_test = FloorplanGraphDataset(
-    DATA_PATH, transforms.Normalize(mean=[0.5], std=[0.5]), split="test"
-)
+fp_dataset_test = FloorplanGraphDataset(DATA_PATH)
 
 fp_loader = torch.utils.data.DataLoader(
     fp_dataset_test, batch_size=1, shuffle=False, collate_fn=floorplan_collate_fn

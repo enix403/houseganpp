@@ -19,45 +19,27 @@ import json
 import numpy as np
 import torch
 from torch.utils.data import Dataset
+import torchvision.transforms as transforms
 from PIL import Image, ImageDraw
 
+_transform_box = transforms.Normalize(mean=[0.5], std=[0.5])
 
 class FloorplanGraphDataset(Dataset):
-    def __init__(self, data_path, transform=None, target_set=8, split="test"):
-        super(Dataset, self).__init__()
-
-        self.split = split
-        self.subgraphs = []
-        self.target_set = target_set
+    def __init__(self, data_path,):
+        super().__init__()
 
         with open(data_path, "r") as f1:
             lines = f1.readlines()
-            lines = list(map(lambda x: x.strip(), lines))
 
-        for line in lines:
-            rms_type, fp_eds, eds_to_rms = reader(
-                line
-            )
-
-            self.subgraphs.append([
-                rms_type,
-                fp_eds,
-                eds_to_rms
-            ])
-
-        self.transform = transform
+        # [(rms_type, fp_eds, eds_to_rms)]
+        self.subgraphs = [reader(line.strip()) for line in lines]
 
     def __len__(self):
         return len(self.subgraphs)
 
     def __getitem__(self, index):
 
-        graph = self.subgraphs[index]
-
-        rms_type = graph[0]
-        # rms_bbs = graph[1]
-        fp_eds = graph[1]
-        eds_to_rms = graph[2]
+        rms_type, fp_eds, eds_to_rms = self.subgraphs[index]
 
         triples, rms_masks = self.build_graph(rms_type, fp_eds, eds_to_rms)
 
@@ -65,9 +47,8 @@ class FloorplanGraphDataset(Dataset):
         graph_edges = torch.LongTensor(triples)
 
         # transform converts range [0, 1] to [-1, 1]
-        rooms_mks = self.transform(torch.FloatTensor(rms_masks))
+        rooms_mks = _transform_box(torch.FloatTensor(rms_masks))
 
-        sample = (rooms_mks, graph_nodes, graph_edges)
 
         return rooms_mks, graph_nodes, graph_edges
 
