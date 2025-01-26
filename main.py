@@ -39,7 +39,7 @@ def _infer(nds, eds, masks=None, fixed_nodes=[]):
     fixed_masks = fix_nodes(masks, fixed_nodes)
 
     next_masks = model(z, fixed_masks, nds, eds)
-    return next_masks.detach().numpy()
+    return next_masks.detach()
 
 NUM_ITERS = 10
 
@@ -59,6 +59,8 @@ selected_types = [_types[:k+1] for k in range(NUM_ITERS)]
 
 # -------
 
+print("Starting generation")
+
 # (R, 64, 64): mask per room
 masks = _infer(nds, eds, masks=None, fixed_nodes=[])
 
@@ -73,12 +75,15 @@ for _types in selected_types:
 
     masks = _infer(nds, eds, masks=masks, fixed_nodes=fixed_nodes)
 
+masks = masks.numpy()
 # -----
 
 # save final floorplans
 imk = draw_masks(masks.copy(), rms_type_z)
 imk = torch.tensor(np.array(imk).transpose((2, 0, 1))) / 255.0
 save_image(imk, "./{}/fp_final_{}.png".format(OUT_PATH, i), nrow=1, normalize=False)
+
+print("Done")
 
 # -----
 

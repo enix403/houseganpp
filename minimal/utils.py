@@ -56,24 +56,27 @@ ID_COLOR = {
 
 # ===============================
 
+def fix_nodes(masks, ind_fixed_nodes):
+    # (R, 64, 64)
+    fixed_masks = masks.clone()
 
-def fix_nodes(prev_mks, ind_fixed_nodes):
-    given_masks = torch.tensor(prev_mks)
     ind_not_fixed_nodes = torch.tensor(
-        [k for k in range(given_masks.shape[0]) if k not in ind_fixed_nodes],
+        [k for k in range(fixed_masks.shape[0]) if k not in ind_fixed_nodes],
         dtype=torch.long
     )
 
     ## Set non fixed masks to -1.0
-    given_masks[ind_not_fixed_nodes] = -1.0
-    given_masks = given_masks.unsqueeze(1)
+    fixed_masks[ind_not_fixed_nodes] = -1.0
+    fixed_masks = fixed_masks.unsqueeze(1)
+    # (R, 1, 64, 64)
     
     ## Add channel to indicate given nodes
-    inds_masks = torch.zeros_like(given_masks)
+    inds_masks = torch.zeros_like(fixed_masks)
     inds_masks[ind_not_fixed_nodes] = 0.0
     inds_masks[ind_fixed_nodes] = 1.0
-    given_masks = torch.cat([given_masks, inds_masks], 1)
-    return given_masks
+    fixed_masks = torch.cat([fixed_masks, inds_masks], 1)
+
+    return fixed_masks
 
 
 def draw_masks(masks, real_nodes, im_size=256):
