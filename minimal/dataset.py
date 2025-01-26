@@ -95,78 +95,54 @@ class FloorplanGraphDataset(Dataset):
 
         return rooms_mks, graph_nodes, graph_edges
 
-    def make_sequence(
-        self,
-        # np.array
-        # bounding boxes [x1, y1, x2, y2] for each egde
-        # (E, 4)
-        edges,
-    ):
-        polys = []
-        
-        v_curr = tuple(edges[0][:2])
-        e_ind_curr = 0
-        e_visited = [0]
-        seq_tracker = [v_curr]
-        find_next = False
+    def build_graph(self, rms_type, fp_eds, eds_to_rms):
 
-        while len(e_visited) < len(edges):
-            if find_next == False:
-                if v_curr == tuple(edges[e_ind_curr][2:]):
-                    v_curr = tuple(edges[e_ind_curr][:2])
-                else:
-                    v_curr = tuple(edges[e_ind_curr][2:])
-                find_next = not find_next
-            else:
-                # look for next edge
-                for k, e in enumerate(edges):
-                    if k not in e_visited:
-                        if v_curr == tuple(e[:2]):
-                            v_curr = tuple(e[2:])
-                            e_ind_curr = k
-                            e_visited.append(k)
-                            break
-                        elif v_curr == tuple(e[2:]):
-                            v_curr = tuple(e[:2])
-                            e_ind_curr = k
-                            e_visited.append(k)
-                            break
+        nodes = rms_type
 
-            # extract next sequence
-            if v_curr == seq_tracker[-1]:
-                polys.append(seq_tracker)
-                for k, e in enumerate(edges):
-                    if k not in e_visited:
-                        v_curr = tuple(edges[0][:2])
-                        seq_tracker = [v_curr]
-                        find_next = False
-                        e_ind_curr = k
-                        e_visited.append(k)
-                        break
-            else:
-                seq_tracker.append(v_curr)
-        polys.append(seq_tracker)
+        # ------------
 
-        return polys
+        rms_masks = []
+        im_size = 256
+        out_size = 64
+        fp_mk = np.zeros((out_size, out_size))
 
-    def build_graph(self, rms_type, fp_eds, eds_to_rms, out_size=64):
+        for k in range(len(nodes)):
 
-        # create edges
-        # triples = []
-        # nodes = rms_type
+            # Index of edges from eds_to_rms which have node k as their first node
+            eds = [i for i, inner in enumerate(eds_to_rms) if inner[0] == k]
+                
+            edges = fp_eds[eds]
+            poly = make_sequence(edges)[0]
+            poly = [(im_size * x, im_size * y) for x, y in poly]
 
-        # encode connections
-        # for k in range(len(nodes)):
-        #     for l in range(len(nodes)):
-        #         if l > k:
-        #             is_adjacent = any(
-        #                 [True for e_map in eds_to_rms if (l in e_map) and (k in e_map)]
-        #             )
-        #             if is_adjacent:
-        #                 triples.append([k, 1, l])
-        #             else:
-        #                 triples.append([k, -1, l])
+            if len(poly) < 2:
+                print("Empty room")
+                exit(0)
 
+            mask_canvas = Image.new("L", (im_size, im_size))
+            ImageDraw.Draw(mask_canvas).polygon(poly, fill="white")
+
+            mask = np.array(mask_canvas.resize((out_size, out_size)))
+
+            # The resizing operation above may blur out some pixels
+            # Ensure that the mask only contains 0 and 1, and nothing else 
+            mask_on_at = np.where(mask > 0)
+            mask[mask_on_at] = 1.0
+
+            rms_masks.append(mask)
+
+            if rms_type[k] != 15 and rms_type[k] != 17:
+                fp_mk[mask_on_at] = k + 1
+
+        # trick to remove overlap
+        for k in range(len(nodes)):
+            if rms_type[k] != 15 and rms_type[k] != 17:
+                rm_arr = np.zeros((out_size, out_size))
+                inds = np.where(fp_mk == k + 1)
+                rm_arr[inds] = 1.0
+                rms_masks[k] = rm_arr
+
+        rms_masks = np.array(rms_masks)
 
         # ------------
 
@@ -176,7 +152,6 @@ class FloorplanGraphDataset(Dataset):
         #   [a, -1, b] if a is not connected to b
         triples = []
 
-        nodes = rms_type
         for k in range(len(nodes)):
             for l in range(k + 1, len(nodes)):
                 is_adjacent = False
@@ -187,67 +162,61 @@ class FloorplanGraphDataset(Dataset):
 
                 triples.append([k, 1 if is_adjacent else -1, l])
 
-        # ------------
-
-        # get rooms masks
-        # eds_to_rms_tmp = []
-        # for l in range(len(eds_to_rms)):
-            # eds_to_rms_tmp.append([eds_to_rms[l][0]])
-
-        # ------------
-
-        rms_masks = []
-        im_size = 256
-        fp_mk = np.zeros((out_size, out_size))
-
-        for k in range(len(nodes)):
-
-            # add rooms and doors
-            # eds = []
-            # for l, e_map in enumerate(eds_to_rms_tmp):
-            #     if k == e_map[0]:
-            #         eds.append(l)
-
-            # Index of edges from eds_to_rms which have node k as their first node
-            eds = [i for i, inner in enumerate(eds_to_rms) if inner[0] == k]
-
-            # draw rooms
-            rm_im = Image.new("L", (im_size, im_size))
-            dr = ImageDraw.Draw(rm_im)
-            for eds_poly in [eds]:
-                poly = self.make_sequence(np.array([fp_eds[l][:4] for l in eds_poly]))[
-                    0
-                ]
-                poly = [(im_size * x, im_size * y) for x, y in poly]
-                if len(poly) >= 2:
-                    dr.polygon(poly, fill="white")
-                else:
-                    print("Empty room")
-                    exit(0)
-
-            rm_im = rm_im.resize((out_size, out_size))
-            rm_arr = np.array(rm_im)
-            inds = np.where(rm_arr > 0)
-            rm_arr[inds] = 1.0
-            rms_masks.append(rm_arr)
-
-            if rms_type[k] != 15 and rms_type[k] != 17:
-                fp_mk[inds] = k + 1
-
-        # trick to remove overlap
-        for k in range(len(nodes)):
-            if rms_type[k] != 15 and rms_type[k] != 17:
-                rm_arr = np.zeros((out_size, out_size))
-                inds = np.where(fp_mk == k + 1)
-                rm_arr[inds] = 1.0
-                rms_masks[k] = rm_arr
-
-        # convert to array
-        nodes = np.array(nodes)
         triples = np.array(triples)
-        rms_masks = np.array(rms_masks)
 
+        # ------------
+
+        nodes = np.array(nodes)
         return nodes, triples, rms_masks
+
+
+def make_sequence(edges):
+    polys = []
+    
+    v_curr = tuple(edges[0][:2])
+    e_ind_curr = 0
+    e_visited = [0]
+    seq_tracker = [v_curr]
+    find_next = False
+
+    while len(e_visited) < len(edges):
+        if find_next == False:
+            if v_curr == tuple(edges[e_ind_curr][2:]):
+                v_curr = tuple(edges[e_ind_curr][:2])
+            else:
+                v_curr = tuple(edges[e_ind_curr][2:])
+            find_next = True
+        else:
+            # look for next edge
+            for k, e in enumerate(edges):
+                if k not in e_visited:
+                    if v_curr == tuple(e[:2]):
+                        v_curr = tuple(e[2:])
+                        e_ind_curr = k
+                        e_visited.append(k)
+                        break
+                    elif v_curr == tuple(e[2:]):
+                        v_curr = tuple(e[:2])
+                        e_ind_curr = k
+                        e_visited.append(k)
+                        break
+
+        # extract next sequence
+        if v_curr == seq_tracker[-1]:
+            polys.append(seq_tracker)
+            for k, e in enumerate(edges):
+                if k not in e_visited:
+                    v_curr = tuple(edges[0][:2])
+                    seq_tracker = [v_curr]
+                    find_next = False
+                    e_ind_curr = k
+                    e_visited.append(k)
+                    break
+        else:
+            seq_tracker.append(v_curr)
+    polys.append(seq_tracker)
+
+    return polys
 
 
 def one_hot_embedding(labels, num_classes=19):
@@ -356,3 +325,6 @@ def reader(filename):
         eds_to_rms_tmp = [ar[:1] for ar in eds_to_rms]
 
         return rms_type, fp_eds, rms_bbs, eds_to_rms, eds_to_rms_tmp
+
+
+
