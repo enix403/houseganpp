@@ -128,19 +128,22 @@ class FloorplanGraphDataset(Dataset):
             # Ensure that the mask only contains 0 and 1, and nothing else 
             mask_on_at = np.where(mask > 0)
             mask[mask_on_at] = 1.0
-
             rms_masks.append(mask)
 
             if rms_type[k] != 15 and rms_type[k] != 17:
+                # It may overwrite some previous mask value
+                # This will be corrected later
                 fp_mk[mask_on_at] = k + 1
 
         # trick to remove overlap
         for k in range(len(nodes)):
             if rms_type[k] != 15 and rms_type[k] != 17:
-                rm_arr = np.zeros((out_size, out_size))
                 inds = np.where(fp_mk == k + 1)
-                rm_arr[inds] = 1.0
-                rms_masks[k] = rm_arr
+
+                temp_canvas = np.zeros((out_size, out_size))
+                temp_canvas[inds] = 1.0
+
+                rms_masks[k] = temp_canvas
 
         rms_masks = np.array(rms_masks)
 
