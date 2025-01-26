@@ -35,16 +35,14 @@ class FloorplanGraphDataset(Dataset):
             lines = list(map(lambda x: x.strip(), lines))
 
         for line in lines:
-            rms_type, fp_eds, rms_bbs, eds_to_rms, eds_to_rms_tmp = reader(
+            rms_type, fp_eds, eds_to_rms = reader(
                 line
             )
 
             self.subgraphs.append([
                 rms_type,
-                rms_bbs,
                 fp_eds,
-                eds_to_rms,
-                eds_to_rms_tmp,
+                eds_to_rms
             ])
 
         self.transform = transform
@@ -57,19 +55,19 @@ class FloorplanGraphDataset(Dataset):
         graph = self.subgraphs[index]
 
         rms_type = graph[0]
-        rms_bbs = graph[1]
-        fp_eds = graph[2]
-        eds_to_rms = graph[3]
-        eds_to_rms_tmp = graph[4]
+        # rms_bbs = graph[1]
+        fp_eds = graph[1]
+        eds_to_rms = graph[2]
 
-        # build input graph
-        graph_nodes = one_hot_embedding(np.array(rms_type))[:, 1:]
-        graph_edges, rooms_mks = self.build_graph(rms_type, fp_eds, eds_to_rms)
+        triples, rms_masks = self.build_graph(rms_type, fp_eds, eds_to_rms)
 
-        graph_nodes = torch.FloatTensor(graph_nodes)
-        graph_edges = torch.LongTensor(graph_edges)
-        rooms_mks = torch.FloatTensor(rooms_mks)
-        rooms_mks = self.transform(rooms_mks)
+        graph_nodes = torch.FloatTensor(one_hot_embedding(np.array(rms_type))[:, 1:])
+        graph_edges = torch.LongTensor(triples)
+
+        # transform converts range [0, 1] to [-1, 1]
+        rooms_mks = self.transform(torch.FloatTensor(rms_masks))
+
+        sample = (rooms_mks, graph_nodes, graph_edges)
 
         return rooms_mks, graph_nodes, graph_edges
 
@@ -247,34 +245,16 @@ def floorplan_collate_fn(batch):
     return all_rooms_mks, all_nodes, all_edges, all_node_to_sample, all_edge_to_sample
 
 
-# Returns (as tuple)
-#   rms_type: "room_type" from file
-#   rms_bbs: (R, 4): "boxes" from file, but centralized
-#   fp_eds: (E, 4): "edges" from file, but centralized
-#   eds_to_rms: list[list[int]] "ed_rm" from file
-#   eds_to_rms_tmp: eds_to_rms but the inner list truncated to length 1
-#                   i.e eds_to_rms_tmp[i][0] == eds_to_rms[i][0] for every i
 def reader(filename):
     with open(filename) as f:
         # open file
         info = json.load(f)
 
         # read from file
-        # rms_bbs = np.asarray(info["boxes"])
-        # fp_eds = info["edges"]
-        # rms_type = info["room_type"]
-        # eds_to_rms = info["ed_rm"]
-
         rms_type = info["room_type"]
         rms_bbs = np.array(info["boxes"])
         fp_eds = np.array(info["edges"])
         eds_to_rms = info["ed_rm"]
-
-        # Count rooms that are not equal to 17 (interior_door)
-        # s_r = 0
-        # for rmk in range(len(rms_type)):
-        #     if rms_type[rmk] != 17:
-        #         s_r = s_r + 1
 
         # Convert bounding boxes from range [0,256] to range [0,1]
         rms_bbs = np.array(rms_bbs) / 256.0
@@ -296,17 +276,7 @@ def reader(filename):
         fp_eds[:, :2] -= shift
         fp_eds[:, 2:] -= shift
 
-        # tl -= shift
-        # br -= shift
-
-        # eds_to_rms_tmp = []
-        # for l in range(len(eds_to_rms)):
-            # eds_to_rms_tmp.append([eds_to_rms[l][0]])
-
-        # eds_to_rms but the inner list truncated to length 1
-        eds_to_rms_tmp = [ar[:1] for ar in eds_to_rms]
-
-        return rms_type, fp_eds, rms_bbs, eds_to_rms, eds_to_rms_tmp
+        return rms_type, fp_eds, eds_to_rms
 
 
 
