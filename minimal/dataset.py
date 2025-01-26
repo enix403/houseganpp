@@ -62,38 +62,17 @@ class FloorplanGraphDataset(Dataset):
         eds_to_rms = graph[3]
         eds_to_rms_tmp = graph[4]
 
-        # rms_bbs = np.array(rms_bbs)
-        # fp_eds = np.array(fp_eds)
-
-        # extract boundary box and centralize
-        # ------
-        tl = np.min(rms_bbs[:, :2], 0)
-        br = np.max(rms_bbs[:, 2:], 0)
-        shift = (tl + br) / 2.0 - 0.5
-        rms_bbs[:, :2] -= shift
-        rms_bbs[:, 2:] -= shift
-        fp_eds[:, :2] -= shift
-        fp_eds[:, 2:] -= shift
-        # tl -= shift
-        # br -= shift
-        # eds_to_rms_tmp = []
-        # for l in range(len(eds_to_rms)):
-        #     eds_to_rms_tmp.append([eds_to_rms[l][0]])
-        # ------
-
         # build input graph
-        graph_nodes, graph_edges, rooms_mks = self.build_graph(
-            rms_type, fp_eds, eds_to_rms
-        )
+        graph_nodes = one_hot_embedding(np.array(rms_type))[:, 1:]
+        graph_edges, rooms_mks = self.build_graph(rms_type, fp_eds, eds_to_rms)
 
-        # convert to tensor
-        graph_nodes = one_hot_embedding(graph_nodes)[:, 1:]
         graph_nodes = torch.FloatTensor(graph_nodes)
         graph_edges = torch.LongTensor(graph_edges)
         rooms_mks = torch.FloatTensor(rooms_mks)
         rooms_mks = self.transform(rooms_mks)
 
         return rooms_mks, graph_nodes, graph_edges
+
 
     def build_graph(self, rms_type, fp_eds, eds_to_rms):
 
@@ -128,6 +107,7 @@ class FloorplanGraphDataset(Dataset):
             # Ensure that the mask only contains 0 and 1, and nothing else 
             mask_on_at = np.where(mask > 0)
             mask[mask_on_at] = 1.0
+
             rms_masks.append(mask)
 
             if rms_type[k] != 15 and rms_type[k] != 17:
@@ -169,8 +149,7 @@ class FloorplanGraphDataset(Dataset):
 
         # ------------
 
-        nodes = np.array(nodes)
-        return nodes, triples, rms_masks
+        return triples, rms_masks
 
 
 def make_sequence(edges):
