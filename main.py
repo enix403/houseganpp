@@ -6,7 +6,7 @@ from torchvision.utils import save_image
 
 from minimal.arch import Generator
 from minimal.dataset import FloorplanGraphDataset
-from minimal.utils import init_input, draw_masks, draw_graph
+from minimal.utils import fix_nodes, draw_masks, draw_graph
 
 PRETRAINED_PATH = "./checkpoints/pretrained.pth"
 DATA_PATH = "./data/sample_list.txt"
@@ -22,11 +22,24 @@ model.load_state_dict(
 model = model.eval()
 
 @torch.no_grad()
-def _infer(nds, eds, prev_state=None):
-    z, masks_in = init_input(nds, prev_state)
-    masks = model(z, masks_in, nds, eds)
+def _infer(nds, eds, masks=None, fixed_nodes=[]):
 
-    return masks.detach().numpy()
+    # Input is: 
+    #       z = (R, 128)
+    # given_m = (R, 2, 64, 64)
+    # given_y = (R, 18)
+    # given_w = (E(R), 3)
+
+    z = torch.randn(len(nds), 128)
+
+    if masks is None:
+        masks = torch.zeros((nds.shape[0], 64, 64)) - 1.0
+
+    fixed_nodes = torch.tensor(fixed_nodes, dtype=torch.long)
+    fixed_masks = fix_nodes(masks, fixed_nodes)
+
+    next_masks = model(z, fixed_masks, nds, eds)
+    return next_masks.detach().numpy()
 
 NUM_ITERS = 10
 
@@ -40,16 +53,14 @@ sample = next(iter(fp_dataset))
 # eds (graph_edges) (E, 3) = per edge [node_1, -1 / 1, node_2]
 _, nds, eds = sample
 
-rms_type_z = np.where(nds.detach().cpu() == 1)[1]
+rms_type_z = np.where(nds == 1)[1]
 _types = sorted(list(set(rms_type_z)))
 selected_types = [_types[:k+1] for k in range(NUM_ITERS)]
 
 # -------
 
-state = { "masks": None, "fixed_nodes": [] }
-
 # (R, 64, 64): mask per room
-masks = _infer(nds, eds, state)
+masks = _infer(nds, eds, masks=None, fixed_nodes=[])
 
 # generate per room type
 for _types in selected_types:
@@ -60,8 +71,7 @@ for _types in selected_types:
         for _t in _types
     ])
 
-    state = { "masks": masks, "fixed_nodes": fixed_nodes }
-    masks = _infer(nds, eds, state)
+    masks = _infer(nds, eds, masks=masks, fixed_nodes=fixed_nodes)
 
 # -----
 

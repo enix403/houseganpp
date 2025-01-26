@@ -57,40 +57,21 @@ ID_COLOR = {
 # ===============================
 
 
-def init_input(nds, prev_state=None, mask_size=64):
-    # Returns: 
-    #       z = (R, 128)
-    # given_m = (R, 2, 64, 64)
-    # given_y = (R, 18)
-    # given_w = (E(R), 3)
-
-    fixed_nodes = prev_state["fixed_nodes"]
-    prev_mks = (
-        torch.zeros((nds.shape[0], mask_size, mask_size)) - 1.0
-        if (prev_state["masks"] is None)
-        else prev_state["masks"]
-    )
-    masks_in = fix_nodes(prev_mks, torch.tensor(fixed_nodes))
-
-    z = torch.randn(len(nds), 128).float()
-
-    return z, masks_in
-
-
 def fix_nodes(prev_mks, ind_fixed_nodes):
     given_masks = torch.tensor(prev_mks)
     ind_not_fixed_nodes = torch.tensor(
-        [k for k in range(given_masks.shape[0]) if k not in ind_fixed_nodes]
+        [k for k in range(given_masks.shape[0]) if k not in ind_fixed_nodes],
+        dtype=torch.long
     )
 
     ## Set non fixed masks to -1.0
-    given_masks[ind_not_fixed_nodes.long()] = -1.0
+    given_masks[ind_not_fixed_nodes] = -1.0
     given_masks = given_masks.unsqueeze(1)
     
     ## Add channel to indicate given nodes
     inds_masks = torch.zeros_like(given_masks)
-    inds_masks[ind_not_fixed_nodes.long()] = 0.0
-    inds_masks[ind_fixed_nodes.long()] = 1.0
+    inds_masks[ind_not_fixed_nodes] = 0.0
+    inds_masks[ind_fixed_nodes] = 1.0
     given_masks = torch.cat([given_masks, inds_masks], 1)
     return given_masks
 
