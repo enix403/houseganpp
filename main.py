@@ -21,60 +21,62 @@ model.load_state_dict(
 )
 model = model.eval()
 
-# run inference
 def _infer(graph, model, prev_state=None):
-
-    # configure input to the network
     z, given_masks_in, given_nds, given_eds = init_input(graph, prev_state)
-    # run inference model
+
     with torch.no_grad():
         masks = model(z, given_masks_in, given_nds, given_eds)
         masks = masks.detach().cpu().numpy()
+
     return masks
 
+NUM_ITERS = 10
 
 fp_dataset = FloorplanGraphDataset(DATA_PATH)
 
 i = 0
 sample = next(iter(fp_dataset))
 
-# mks (R, 64, 64) = GT segmentation mask per room
-# nds (R, 18) = one hot encoding per room
-# eds (E, 3) = per edge [node_1, -1 / 1 ???, node_2]
-mks, nds, eds = sample
-
-# (R,) undo one hot encoding (0-index based)
-real_nodes = np.where(nds.detach().cpu() == 1)[-1]
+# mks (rooms_mks)   (R, 64, 64) = GT segmentation mask per room
+# nds (graph_nodes) (R, 18) = one hot encoding per room
+# eds (graph_edges) (E, 3) = per edge [node_1, -1 / 1, node_2]
+_, nds, eds = sample
 graph = [nds, eds]
-# true_graph_obj: networkx graph
-# graph_im: PIL graph image
-true_graph_obj, graph_im = draw_graph([real_nodes, eds.detach().cpu().numpy()])
-graph_im.save("./{}/graph_{}.png".format(OUT_PATH, i))  # save graph
 
-# add room types incrementally
-_types = sorted(list(set(real_nodes)))
-selected_types = [_types[: k + 1] for k in range(10)]
+rms_type_z = np.where(nds.detach().cpu() == 1)[1]
+_types = sorted(list(set(rms_type_z)))
+selected_types = [_types[:k+1] for k in range(NUM_ITERS)]
 
-# initialize layout
-state = {"masks": None, "fixed_nodes": []}
+# -------
 
+state = { "masks": None, "fixed_nodes": [] }
+
+# (R, 64, 64): mask per room
 masks = _infer(graph, model, state)
-# im0 = draw_masks(masks.copy(), real_nodes)
-# im0 = torch.tensor(np.array(im0).transpose((2, 0, 1)))/255.0
-# # visualize init image
-# save_image(im0, './{}/fp_init_{}.png'.format(OUT_PATH, i), nrow=1, normalize=False)
 
 # generate per room type
-for _iter, _types in enumerate(selected_types):
-    _fixed_nds = (
-        np.concatenate([np.where(real_nodes == _t)[0] for _t in _types])
-        if len(_types) > 0
-        else np.array([])
-    )
-    state = {"masks": masks, "fixed_nodes": _fixed_nds}
+for _types in selected_types:
+
+    # list[int], indexes of rooms to fix
+    fixed_nodes = np.concatenate([
+        np.where(rms_type_z == _t)[0]
+        for _t in _types
+    ])
+
+    state = { "masks": masks, "fixed_nodes": fixed_nodes }
     masks = _infer(graph, model, state)
 
+# -----
+
 # save final floorplans
-imk = draw_masks(masks.copy(), real_nodes)
-imk = torch.tensor(np.array(imk).transpose((2, 0, 1))) / 255.0
-save_image(imk, "./{}/fp_final_{}.png".format(OUT_PATH, i), nrow=1, normalize=False)
+# imk = draw_masks(masks.copy(), rms_type_z)
+# imk = torch.tensor(np.array(imk).transpose((2, 0, 1))) / 255.0
+# save_image(imk, "./{}/fp_final_{}.png".format(OUT_PATH, i), nrow=1, normalize=False)
+
+# -----
+
+# rms_type_z = np.where(nds.detach().cpu() == 1)[-1]
+# true_graph_obj: networkx graph
+# true_graph_obj, graph_im = draw_graph([rms_type_z, eds.detach().cpu().numpy()])
+# graph_im.save("./{}/graph_{}.png".format(OUT_PATH, i))  # save graph
+

@@ -171,6 +171,8 @@ class Generator(nn.Module):
         # given_y = (R, 18)
         # given_w = (E(R), 3)
 
+        # Returns (R, 64, 64): mask per room
+
         z = z.view(-1, 128)
         # include nodes
         y = given_y.view(-1, 18)
