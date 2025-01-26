@@ -26,22 +26,18 @@ def prepare_fixed_masks(masks, fixed_nodes):
     masks = masks.clone()
 
     ind_fixed = torch.tensor(fixed_nodes, dtype=torch.long)
-
     ind_not_fixed = torch.tensor(
         [k for k in range(masks.shape[0]) if k not in ind_fixed],
         dtype=torch.long
     )
 
-    ## Set non fixed masks to -1.0
     masks[ind_not_fixed] = -1.0
     
-    ## Add channel to indicate given nodes
     label_bg = torch.zeros_like(masks)
-    label_bg[ind_not_fixed] = 0.0
     label_bg[ind_fixed] = 1.0
+    label_bg[ind_not_fixed] = 0.0
 
     return torch.stack([masks, label_bg], dim=1)
-
 
 @torch.no_grad()
 def _infer(nds, eds, masks=None, fixed_nodes=[]):

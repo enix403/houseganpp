@@ -164,7 +164,7 @@ class Generator(nn.Module):
             *conv_block(32, 16, 3, 1, 1, act="leaky")
         )
 
-    def forward(self, z, given_m=None, given_y=None, given_w=None):
+    def forward(self, z, given_m, given_y, given_w):
 
         #       z = (R, 128)
         # given_m = (R, 2, 64, 64)
