@@ -164,7 +164,13 @@ class Generator(nn.Module):
             *conv_block(32, 16, 3, 1, 1, act="leaky")
         )
 
-    def forward(self, z, given_m=None, given_y=None, given_w=None, given_v=None):
+    def forward(self, z, given_m=None, given_y=None, given_w=None):
+
+        #       z = (R, 128)
+        # given_m = (R, 2, 64, 64)
+        # given_y = (R, 18)
+        # given_w = (E(R), 3)
+
         z = z.view(-1, 128)
         # include nodes
         y = given_y.view(-1, 18)
