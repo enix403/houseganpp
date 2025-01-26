@@ -34,8 +34,10 @@ class FloorplanGraphDataset(Dataset):
         # [(rms_type, fp_eds, eds_to_rms)]
         self.subgraphs = [reader(line.strip()) for line in lines]
 
+
     def __len__(self):
         return len(self.subgraphs)
+
 
     def __getitem__(self, index):
 
@@ -48,7 +50,6 @@ class FloorplanGraphDataset(Dataset):
 
         # transform converts range [0, 1] to [-1, 1]
         rooms_mks = _transform_box(torch.FloatTensor(rms_masks))
-
 
         return rooms_mks, graph_nodes, graph_edges
 
@@ -193,37 +194,6 @@ def one_hot_embedding(labels, num_classes=19):
     y = torch.eye(num_classes)
     # print(" label is",labels)
     return y[labels]
-
-
-def floorplan_collate_fn(batch):
-
-    all_rooms_mks, all_nodes, all_edges = [], [], []
-    all_node_to_sample, all_edge_to_sample = [], []
-    node_offset = 0
-    eds_sets = []
-    for i, (rooms_mks, nodes, edges) in enumerate(batch):
-        O, T = nodes.size(0), edges.size(0)
-        all_rooms_mks.append(rooms_mks)
-        all_nodes.append(nodes)
-        # eds_sets.append(eds_set)
-        edges = edges.clone()
-        if edges.shape[0] > 0:
-            edges[:, 0] += node_offset
-            edges[:, 2] += node_offset
-            all_edges.append(edges)
-        all_node_to_sample.append(torch.LongTensor(O).fill_(i))
-        all_edge_to_sample.append(torch.LongTensor(T).fill_(i))
-        node_offset += O
-    all_rooms_mks = torch.cat(all_rooms_mks, 0)
-    all_nodes = torch.cat(all_nodes)
-    if len(all_edges) > 0:
-        all_edges = torch.cat(all_edges)
-    else:
-        all_edges = torch.tensor([])
-    all_node_to_sample = torch.cat(all_node_to_sample)
-    all_edge_to_sample = torch.cat(all_edge_to_sample)
-
-    return all_rooms_mks, all_nodes, all_edges, all_node_to_sample, all_edge_to_sample
 
 
 def reader(filename):

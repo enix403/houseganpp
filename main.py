@@ -6,7 +6,7 @@ import torch
 from torchvision.utils import save_image
 
 from minimal.arch import Generator
-from minimal.dataset import FloorplanGraphDataset, floorplan_collate_fn
+from minimal.dataset import FloorplanGraphDataset
 from minimal.utils import init_input, draw_masks, draw_graph
 
 PRETRAINED_PATH = "./checkpoints/pretrained.pth"
@@ -22,14 +22,6 @@ model.load_state_dict(
 )
 model = model.eval()
 
-# initialize dataset iterator
-fp_dataset_test = FloorplanGraphDataset(DATA_PATH)
-
-fp_loader = torch.utils.data.DataLoader(
-    fp_dataset_test, batch_size=1, shuffle=False, collate_fn=floorplan_collate_fn
-)
-
-
 # run inference
 def _infer(graph, model, prev_state=None):
 
@@ -42,13 +34,15 @@ def _infer(graph, model, prev_state=None):
     return masks
 
 
+fp_dataset_test = FloorplanGraphDataset(DATA_PATH)
+
 i = 0
-sample = next(iter(fp_loader))
+sample = next(iter(fp_dataset_test))
 
 # mks (R, 64, 64) = GT segmentation mask per room
 # nds (R, 18) = one hot encoding per room
 # eds (E, 3) = per edge [node_1, -1 / 1 ???, node_2]
-mks, nds, eds, _, _ = sample
+mks, nds, eds = sample
 
 # (R,) undo one hot encoding (0-index based)
 real_nodes = np.where(nds.detach().cpu() == 1)[-1]
