@@ -1,5 +1,4 @@
 import os
-import argparse
 import numpy as np
 
 import torch
@@ -13,7 +12,7 @@ PRETRAINED_PATH = "./checkpoints/pretrained.pth"
 DATA_PATH = "./data/sample_list.txt"
 OUT_PATH = "./dump"
 
-os.makedirs(OUT_PATH, exist_ok=True)
+# os.makedirs(OUT_PATH, exist_ok=True)
 
 # Initialize generator and discriminator
 model = Generator()
@@ -34,10 +33,10 @@ def _infer(graph, model, prev_state=None):
     return masks
 
 
-fp_dataset_test = FloorplanGraphDataset(DATA_PATH)
+fp_dataset = FloorplanGraphDataset(DATA_PATH)
 
 i = 0
-sample = next(iter(fp_dataset_test))
+sample = next(iter(fp_dataset))
 
 # mks (R, 64, 64) = GT segmentation mask per room
 # nds (R, 18) = one hot encoding per room
