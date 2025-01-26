@@ -56,13 +56,14 @@ ID_COLOR = {
 
 # ===============================
 
-def draw_masks(masks, real_nodes, im_size=256):
+def draw_plan(masks, real_nodes, im_size=256):
+    room_imgs = masks.copy()
 
     bg_img = Image.new(
         "RGBA", (im_size, im_size), (255, 255, 255, 255)
     )  # Semitransparent background.
-    
-    for m, nd in zip(masks, real_nodes):
+
+    for m, nd in zip(room_imgs, real_nodes):
 
         # resize map
         m[m > 0] = 255

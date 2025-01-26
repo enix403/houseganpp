@@ -5,7 +5,7 @@ import torch
 from torchvision.utils import save_image
 
 from minimal.dataset import FloorplanGraphDataset
-from minimal.utils import draw_masks, draw_graph
+from minimal.utils import draw_plan, draw_graph
 from minimal.gen import generate_plan
 
 DATA_PATH = "./data/sample_list.txt"
@@ -20,7 +20,7 @@ _, nds, eds = sample
 masks = generate_plan(nds, eds)
 
 # save final floorplans
-imk = draw_masks(masks.copy(), np.where(nds == 1)[1])
+imk = draw_plan(masks, np.where(nds == 1)[1])
 imk = torch.tensor(np.array(imk).transpose((2, 0, 1))) / 255.0
 save_image(imk, "./{}/fp_final_0.png".format(OUT_PATH), nrow=1, normalize=False)
 
