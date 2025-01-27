@@ -139,6 +139,15 @@ def draw_graph(g_true):
                 G_true.add_edges_from([(k, -1)])
             edge_color.append("#727171")
 
+
+    labels = {}
+
+    for k in G_true.nodes:
+        if k != -1:
+            labels[k] = str(g_true[0][k])
+        else:
+            labels[k] = "-1"
+
     plt.figure()
     pos = nx.nx_agraph.graphviz_layout(G_true, prog="neato")
     nx.draw(
@@ -148,12 +157,13 @@ def draw_graph(g_true):
         linewidths=linewidths,
         node_color=colors_H,
         font_size=14,
-        font_color="white",
+        font_color="black",
         font_weight="bold",
         edgecolors=edgecolors,
         edge_color=edge_color,
         width=4.0,
-        with_labels=False,
+        with_labels=True,
+        labels=labels
     )
     plt.tight_layout()
     plt.savefig("./dump/_true_graph.jpg", format="jpg")
