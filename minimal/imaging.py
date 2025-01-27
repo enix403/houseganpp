@@ -56,6 +56,7 @@ ID_COLOR = {
 
 # ===============================
 
+
 def draw_plan(masks, real_nodes, im_size=256):
     room_imgs = masks.clone().numpy()
 
@@ -163,6 +164,7 @@ def draw_graph(g_true):
 
 
 # ===============================
+
 
 def pad_im(cr_im, final_size=256, bkg_color="white"):
     new_size = int(np.max([np.max(list(cr_im.size)), final_size]))

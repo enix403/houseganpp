@@ -31,4 +31,3 @@ print("Done")
 # true_graph_obj: networkx graph
 # true_graph_obj, graph_im = draw_graph([rms_type_z, eds.detach().cpu().numpy()])
 # graph_im.save("./{}/graph_{}.png".format(OUT_PATH, i))  # save graph
-

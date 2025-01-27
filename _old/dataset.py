@@ -26,6 +26,7 @@ _transform_box = transforms.Normalize(mean=[0.5], std=[0.5])
 
 DATA_PATH = "./data/sample_list.txt"
 
+
 class FloorplanGraphDataset(Dataset):
     def __init__(self):
         super().__init__()
@@ -36,10 +37,8 @@ class FloorplanGraphDataset(Dataset):
         # [(rms_type, fp_eds, eds_to_rms)]
         self.subgraphs = [reader(line.strip()) for line in lines]
 
-
     def __len__(self):
         return len(self.subgraphs)
-
 
     def __getitem__(self, index):
 
@@ -71,7 +70,7 @@ def build_graph(rms_type, fp_eds, eds_to_rms):
 
         # Index of edges from eds_to_rms which have node k as their first node
         eds = [i for i, inner in enumerate(eds_to_rms) if inner[0] == k]
-            
+
         edges = fp_eds[eds]
         poly = make_sequence(edges)[0]
         poly = [(im_size * x, im_size * y) for x, y in poly]
@@ -86,7 +85,7 @@ def build_graph(rms_type, fp_eds, eds_to_rms):
         mask = np.array(mask_canvas.resize((out_size, out_size)))
 
         # The resizing operation above may blur out some pixels
-        # Ensure that the mask only contains 0 and 1, and nothing else 
+        # Ensure that the mask only contains 0 and 1, and nothing else
         mask_on_at = np.where(mask > 0)
         mask[mask_on_at] = 1.0
 
@@ -136,7 +135,7 @@ def build_graph(rms_type, fp_eds, eds_to_rms):
 
 def make_sequence(edges):
     polys = []
-    
+
     v_curr = tuple(edges[0][:2])
     e_ind_curr = 0
     e_visited = [0]
@@ -230,6 +229,3 @@ def reader(filename):
         fp_eds[:, 2:] -= shift
 
         return rms_type, rms_bbs, fp_eds, eds_to_rms
-
-
-
