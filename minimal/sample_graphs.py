@@ -1,7 +1,28 @@
 from minimal.layout import LayoutGraphBuilder, LayoutGraph, NodeType
 
-def two():
+def one():
+    bld = LayoutGraphBuilder()
 
+    liv = bld.add_node(NodeType.LIVING_ROOM)
+
+    r1 = bld.add_node(NodeType.BEDROOM)
+    r2 = bld.add_node(NodeType.BEDROOM)
+    kit = bld.add_node(NodeType.KITCHEN)
+    bal = bld.add_node(NodeType.BALCONY)
+    b1 = bld.add_node(NodeType.BATHROOM)
+
+    bld.add_edge(liv, r1)
+    bld.add_edge(liv, r2)
+    bld.add_edge(liv, kit)
+    bld.add_edge(liv, bal)
+    bld.add_edge(liv, b1)
+
+    g = bld.build()
+    g.correct_doors()
+
+    return g
+
+def two():
     bld = LayoutGraphBuilder()
 
     liv = bld.add_node(NodeType.LIVING_ROOM)
@@ -13,9 +34,7 @@ def two():
     b2 = bld.add_node(NodeType.BATHROOM)
     r3 = bld.add_node(NodeType.BEDROOM)
     b3 = bld.add_node(NodeType.BATHROOM)
-    fr = bld.add_node(NodeType.FRONT_DOOR)
 
-    bld.add_edge(liv, fr)
     bld.add_edge(liv, kit)
     bld.add_edge(liv, r1)
     bld.add_edge(liv, r2)
