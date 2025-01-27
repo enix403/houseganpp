@@ -41,9 +41,9 @@ class FloorplanGraphDataset(Dataset):
 
     def __getitem__(self, index):
 
-        rms_type, fp_eds, eds_to_rms = self.subgraphs[index]
+        rms_type, _, fp_eds, eds_to_rms = self.subgraphs[index]
 
-        triples, rms_masks = self.build_graph(rms_type, fp_eds, eds_to_rms)
+        triples, rms_masks = build_graph(rms_type, fp_eds, eds_to_rms)
 
         graph_nodes = torch.FloatTensor(one_hot_embedding(np.array(rms_type))[:, 1:])
         graph_edges = torch.LongTensor(triples)
@@ -54,82 +54,82 @@ class FloorplanGraphDataset(Dataset):
         return rooms_mks, graph_nodes, graph_edges
 
 
-    def build_graph(self, rms_type, fp_eds, eds_to_rms):
+def build_graph(rms_type, fp_eds, eds_to_rms):
 
-        nodes = rms_type
+    nodes = rms_type
 
-        # ------------
+    # ------------
 
-        rms_masks = []
-        im_size = 256
-        out_size = 64
-        fp_mk = np.zeros((out_size, out_size))
+    rms_masks = []
+    im_size = 256
+    out_size = 64
+    fp_mk = np.zeros((out_size, out_size))
 
-        for k in range(len(nodes)):
+    for k in range(len(nodes)):
 
-            # Index of edges from eds_to_rms which have node k as their first node
-            eds = [i for i, inner in enumerate(eds_to_rms) if inner[0] == k]
-                
-            edges = fp_eds[eds]
-            poly = make_sequence(edges)[0]
-            poly = [(im_size * x, im_size * y) for x, y in poly]
+        # Index of edges from eds_to_rms which have node k as their first node
+        eds = [i for i, inner in enumerate(eds_to_rms) if inner[0] == k]
+            
+        edges = fp_eds[eds]
+        poly = make_sequence(edges)[0]
+        poly = [(im_size * x, im_size * y) for x, y in poly]
 
-            if len(poly) < 2:
-                print("Empty room")
-                exit(0)
+        if len(poly) < 2:
+            print("Empty room")
+            exit(0)
 
-            mask_canvas = Image.new("L", (im_size, im_size))
-            ImageDraw.Draw(mask_canvas).polygon(poly, fill="white")
+        mask_canvas = Image.new("L", (im_size, im_size))
+        ImageDraw.Draw(mask_canvas).polygon(poly, fill="white")
 
-            mask = np.array(mask_canvas.resize((out_size, out_size)))
+        mask = np.array(mask_canvas.resize((out_size, out_size)))
 
-            # The resizing operation above may blur out some pixels
-            # Ensure that the mask only contains 0 and 1, and nothing else 
-            mask_on_at = np.where(mask > 0)
-            mask[mask_on_at] = 1.0
+        # The resizing operation above may blur out some pixels
+        # Ensure that the mask only contains 0 and 1, and nothing else 
+        mask_on_at = np.where(mask > 0)
+        mask[mask_on_at] = 1.0
 
-            rms_masks.append(mask)
+        rms_masks.append(mask)
 
-            if rms_type[k] != 15 and rms_type[k] != 17:
-                # It may overwrite some previous mask value
-                # This will be corrected later
-                fp_mk[mask_on_at] = k + 1
+        if rms_type[k] != 15 and rms_type[k] != 17:
+            # It may overwrite some previous mask value
+            # This will be corrected later
+            fp_mk[mask_on_at] = k + 1
 
-        # trick to remove overlap
-        for k in range(len(nodes)):
-            if rms_type[k] != 15 and rms_type[k] != 17:
-                inds = np.where(fp_mk == k + 1)
+    # trick to remove overlap
+    for k in range(len(nodes)):
+        if rms_type[k] != 15 and rms_type[k] != 17:
+            inds = np.where(fp_mk == k + 1)
 
-                temp_canvas = np.zeros((out_size, out_size))
-                temp_canvas[inds] = 1.0
+            temp_canvas = np.zeros((out_size, out_size))
+            temp_canvas[inds] = 1.0
 
-                rms_masks[k] = temp_canvas
+            rms_masks[k] = temp_canvas
 
-        rms_masks = np.array(rms_masks)
+    rms_masks = np.array(rms_masks)
 
-        # ------------
+    # ------------
 
-        # a 3-length list for each pair of nodes (a, b) such
-        # that each item is
-        #   [a,  1, b] if a is connected to b
-        #   [a, -1, b] if a is not connected to b
-        triples = []
+    # a 3-length list for each pair of nodes (a, b) such
+    # that each item is
+    #   [a,  1, b] if a is connected to b
+    #   [a, -1, b] if a is not connected to b
+    triples = []
 
-        for k in range(len(nodes)):
-            for l in range(k + 1, len(nodes)):
-                is_adjacent = False
-                for edge in eds_to_rms:
-                    if (l in edge) and (k in edge):
-                        is_adjacent = True
-                        break
+    for k in range(len(nodes)):
+        for l in range(k + 1, len(nodes)):
+            is_adjacent = False
+            for edge in eds_to_rms:
+                if (l in edge) and (k in edge):
+                    is_adjacent = True
+                    break
 
-                triples.append([k, 1 if is_adjacent else -1, l])
+            triples.append([k, 1 if is_adjacent else -1, l])
 
-        triples = np.array(triples)
+    triples = np.array(triples)
 
-        # ------------
+    # ------------
 
-        return triples, rms_masks
+    return triples, rms_masks
 
 
 def make_sequence(edges):
@@ -227,7 +227,7 @@ def reader(filename):
         fp_eds[:, :2] -= shift
         fp_eds[:, 2:] -= shift
 
-        return rms_type, fp_eds, eds_to_rms
+        return rms_type, rms_bbs, fp_eds, eds_to_rms
 
 
 
