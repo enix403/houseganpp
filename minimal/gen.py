@@ -1,56 +1,12 @@
-from dataclasses import dataclass
+from typing import Optional
 
 import torch
 import torch.nn.functional as F
 
-from minimal.arch import Generator
+from minimal.pretrained import model
+from minimal.layout import LayoutGraph, NodeType
 
-# -----------------------------
-
-PRETRAINED_PATH = "./checkpoints/pretrained.pth"
-
-model = Generator()
-model.load_state_dict(
-    torch.load(PRETRAINED_PATH, map_location=torch.device("cpu")), strict=True
-)
-model = model.eval()
-
-# -----------------------------
-
-class NodeType:
-    # Node types (rooms/doors) and their IDs from HouseGAN++
-    LIVING_ROOM   = 0
-    KITCHEN       = 1
-    BEDROOM       = 2
-    BATHROOM      = 3
-    BALCONY       = 4
-    ENTRANCE      = 5
-    DINING_ROOM   = 6
-    STUDY_ROOM    = 7
-    STORAGE       = 9
-    FRONT_DOOR    = 14
-    UNKNOWN       = 15
-    INTERIOR_DOOR = 16
-
-    # This is what the model expects
-    NUM_NODE_TYPES = 18
-
-    @classmethod
-    def is_door(cls, node: int) -> bool:
-        return node in [cls.FRONT_DOOR, cls.INTERIOR_DOOR]
-
-    @classmethod
-    def is_room(cls, node: int) -> bool:
-        return not cls.is_door(node)
-
-@dataclass
-class LayoutGraph:
-    nodes: list[int]
-    edges: list[(int, int)]
-
-# -----------------------------
-
-def _prepare_fixed_masks(masks, idx_fixed):
+def _prepare_fixed_masks(masks: torch.tensor, idx_fixed: list[int]):
     num_nodes = masks.shape[0]
 
     # (R, 64, 64)
@@ -70,14 +26,12 @@ def _prepare_fixed_masks(masks, idx_fixed):
     return torch.stack([masks, label_bg], dim=1)
 
 @torch.no_grad()
-def _predict_masks(nodes_enc, edges_enc, prev_masks=None, idx_fixed=[]):
-
-    # Input is: 
-    #       z = (R, 128)
-    # given_m = (R, 2, 64, 64)
-    # given_y = (R, 18)
-    # given_w = (E(R), 3)
-
+def _predict_masks(
+    nodes_enc: torch.tensor,
+    edges_enc: torch.tensor,
+    prev_masks: Optional[torch.tensor] = None,
+    idx_fixed: list[int] = []
+):
     num_nodes = nodes_enc.shape[0]
 
     z = torch.randn(num_nodes, 128)
@@ -91,11 +45,10 @@ def _predict_masks(nodes_enc, edges_enc, prev_masks=None, idx_fixed=[]):
     next_masks = model(z, fixed_masks, nodes_enc, edges_enc)
     return next_masks.detach()
 
-# -----------------------------
 
-def _make_edge_triplets(layout_graph: LayoutGraph):
-    n = len(layout_graph.nodes)
-    edges = set(layout_graph.edges)
+def _make_edge_triplets(graph: LayoutGraph):
+    n = len(graph.nodes)
+    edges = set(graph.edges)
 
     triplets: list[(int, int, int)] = []
 
@@ -110,17 +63,16 @@ def _make_edge_triplets(layout_graph: LayoutGraph):
 
     return torch.tensor(triplets, dtype=torch.long)
 
-# -----------------------------
 
-def generate_plan_v2(layout_graph: LayoutGraph, num_iters: int=10):
-    nodes = layout_graph.nodes
-    edges = layout_graph.edges
+def generate_plan(graph: LayoutGraph, num_iters: int = 10):
+    nodes = graph.nodes
+    edges = graph.edges
 
     nodes_enc = F.one_hot(
         torch.tensor(nodes),
         num_classes=NodeType.NUM_NODE_TYPES
     ).float()
-    edges_enc = _make_edge_triplets(layout_graph)
+    edges_enc = _make_edge_triplets(graph)
 
     unique_nodes = sorted(list(set(nodes)))
 
@@ -144,5 +96,3 @@ def generate_plan_v2(layout_graph: LayoutGraph, num_iters: int=10):
         )
 
     return masks
-
-# --------------------
