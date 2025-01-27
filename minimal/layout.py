@@ -108,26 +108,26 @@ class LayoutGraph:
 
         return G
 
+    def draw(self):
+        G = self.to_networkx()
+
+        nx.draw(
+            G,
+            nx.kamada_kawai_layout(G),
+            node_size=1000,
+            node_color=self._nodelist(lambda n: NODE_COLOR[n]),
+            with_labels=True,
+            labels=self._nodedict(lambda n: NODE_NAME[n]),
+            font_color="black",
+            font_weight="bold",
+            font_size=14,
+            edge_color="#b9c991",
+            width=2.0,
+        )
 
 
-"""
-def nodelist(G, func):
-    return [func(node) for node in G.nodes]
+    def _nodelist(self, func):
+        return [func(node) for node in self.nodes]
 
-def nodedict(G, func):
-    return { node: func(node) for node in G.nodes }
-
-nx.draw(
-    G,
-    nx.kamada_kawai_layout(G),
-    node_size=1000,
-    node_color=nodelist(G, lambda n: n.color),
-    edge_color="#D3A2C7",
-    font_color="black",
-    font_weight="bold",
-    font_size=14,
-    width=2.0,
-    with_labels=True,
-    labels=nodedict(G, lambda n: n.name)
-)
-"""
+    def _nodedict(self, func):
+        return { i: func(node) for i, node in enumerate(self.nodes) }
