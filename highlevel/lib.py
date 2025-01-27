@@ -17,7 +17,6 @@ model = model.eval()
 
 # -----------------------------
 
-
 class NodeType:
     # Node types (rooms/doors) and their IDs from HouseGAN++
     LIVING_ROOM   = 0
@@ -49,31 +48,29 @@ class LayoutGraph:
     nodes: list[int]
     edges: list[(int, int)]
 
-
 # -----------------------------
 
-def _prepare_fixed_masks(masks, fixed_nodes):
+def _prepare_fixed_masks(masks, idx_fixed):
     num_nodes = masks.shape[0]
 
     # (R, 64, 64)
     label_bg = torch.zeros_like(masks)
     masks = masks.clone()
 
-    ind_fixed = fixed_nodes
-    ind_not_fixed = [k for k in range(num_nodes) if k not in ind_fixed],
+    idx_not_fixed = [k for k in range(num_nodes) if k not in idx_fixed],
 
     # Label the fixed nodes
-    label_bg[ind_fixed] = 1.0
+    label_bg[idx_fixed] = 1.0
 
     # Label the unfixed nodes, as well as clear
     # out their mask
-    label_bg[ind_not_fixed] = 0.0
-    masks[ind_not_fixed] = -1.0
+    label_bg[idx_not_fixed] = 0.0
+    masks[idx_not_fixed] = -1.0
 
     return torch.stack([masks, label_bg], dim=1)
 
 @torch.no_grad()
-def _predict_masks(nodes_enc, edges_enc, prev_masks=None, fixed_nodes=[]):
+def _predict_masks(nodes_enc, edges_enc, prev_masks=None, idx_fixed=[]):
 
     # Input is: 
     #       z = (R, 128)
@@ -89,7 +86,7 @@ def _predict_masks(nodes_enc, edges_enc, prev_masks=None, fixed_nodes=[]):
         prev_masks = torch.zeros((num_nodes, 64, 64)) - 1.0
 
     # (R, 2, 64, 64)
-    fixed_masks = _prepare_fixed_masks(prev_masks, fixed_nodes)
+    fixed_masks = _prepare_fixed_masks(prev_masks, idx_fixed)
 
     next_masks = model(z, fixed_masks, nodes_enc, edges_enc)
     return next_masks.detach()
@@ -131,19 +128,19 @@ def generate_plan_v2(layout_graph: LayoutGraph, num_iters: int=10):
     masks = _predict_masks(
         nodes_enc, edges_enc,
         prev_masks=None,
-        fixed_nodes=[]
+        idx_fixed=[]
     )
 
     for i in range(num_iters):
-        fixed_nodes_ids = unique_nodes[:i]
+        fixed_nodes = unique_nodes[:i]
 
-        fixed_nodes = [k for k in range(len(nodes)) if nodes[k] in fixed_nodes_ids]
+        idx_fixed = [k for k in range(len(nodes)) if nodes[k] in fixed_nodes]
 
         # Iteratively improve masks
         masks = _predict_masks(
             nodes_enc, edges_enc,
             prev_masks=masks,
-            fixed_nodes=fixed_nodes
+            idx_fixed=idx_fixed
         )
 
     return masks
