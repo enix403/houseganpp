@@ -214,10 +214,10 @@ class LayoutGraphBuilder:
         b: Union[LayoutGraphBuilderNode, int],
     ):
         if isinstance(a, int):
-            a = LayoutGraphBuilderNode(a)
+            a = self.add_node(a)
 
         if isinstance(b, int):
-            b = LayoutGraphBuilderNode(b)
+            b = self.add_node(b)
 
         self.edges.append((a, b))
 
@@ -231,6 +231,6 @@ class LayoutGraphBuilder:
             node.index = i
 
         return LayoutGraph(
-            map(lambda node: node.index, self.nodes),
+            map(lambda node: node.type, self.nodes),
             map(lambda e: (e[0].index, e[1].index), self.edges)
         )
