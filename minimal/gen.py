@@ -6,7 +6,6 @@ import torch.nn.functional as F
 from minimal.pretrained import model
 from minimal.layout import LayoutGraph, NodeType
 
-
 def _prepare_fixed_masks(masks: torch.tensor, idx_fixed: list[int]):
     """
     Prepare a tensor of fixed and unfixed node masks and their labels.
