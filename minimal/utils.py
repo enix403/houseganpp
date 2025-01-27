@@ -57,7 +57,7 @@ ID_COLOR = {
 # ===============================
 
 def draw_plan(masks, real_nodes, im_size=256):
-    room_imgs = masks.copy()
+    room_imgs = masks.clone().numpy()
 
     bg_img = Image.new(
         "RGBA", (im_size, im_size), (255, 255, 255, 255)

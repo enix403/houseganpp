@@ -8,12 +8,11 @@ from minimal.dataset import FloorplanGraphDataset
 from minimal.utils import draw_plan, draw_graph
 from minimal.gen import generate_plan
 
-DATA_PATH = "./data/sample_list.txt"
 OUT_PATH = "./dump"
 
 print("Starting generation")
 
-fp_dataset = FloorplanGraphDataset(DATA_PATH)
+fp_dataset = FloorplanGraphDataset()
 sample = next(iter(fp_dataset))
 _, nds, eds = sample
 

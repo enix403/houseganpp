@@ -24,11 +24,13 @@ from PIL import Image, ImageDraw
 
 _transform_box = transforms.Normalize(mean=[0.5], std=[0.5])
 
+DATA_PATH = "./data/sample_list.txt"
+
 class FloorplanGraphDataset(Dataset):
-    def __init__(self, data_path,):
+    def __init__(self):
         super().__init__()
 
-        with open(data_path, "r") as f1:
+        with open(DATA_PATH, "r") as f1:
             lines = f1.readlines()
 
         # [(rms_type, fp_eds, eds_to_rms)]

@@ -104,7 +104,7 @@ def _make_edge_triplets(layout_graph: LayoutGraph):
             is_joined = ((a, b) in edges) or ((b, a) in edges)
             triplets.append((
                 a,
-                1 if is_joined else -1
+                1 if is_joined else -1,
                 b,
             ))
 
