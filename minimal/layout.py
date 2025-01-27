@@ -156,8 +156,8 @@ class LayoutGraph:
             door_idx = len(nodes) 
             nodes.append(NodeType.INTERIOR_DOOR)
 
-            edges.append((a, door_idx))
-            edges.append((b, door_idx))
+            edges.add((a, door_idx))
+            edges.add((b, door_idx))
 
         self.nodes = nodes
         self.edges = edges
@@ -234,3 +234,5 @@ class LayoutGraphBuilder:
             map(lambda node: node.type, self.nodes),
             map(lambda e: (e[0].index, e[1].index), self.edges)
         )
+
+
