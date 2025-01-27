@@ -78,7 +78,7 @@ NODE_NAME = {
     NodeType.DINING_ROOM   : "D",
     NodeType.STUDY_ROOM    : "S",
     NodeType.STORAGE       : "T",
-    NodeType.FRONT_DOOR    : ":f",
+    NodeType.FRONT_DOOR    : ":F",
     NodeType.UNKNOWN       : "/",
     NodeType.INTERIOR_DOOR : ":d",
 }
@@ -171,8 +171,8 @@ class LayoutGraph:
         deg = self._get_degrees()
 
         doors_to_delete = []
-        for i in range(len(self.nodes)):
-            if self.nodes[i] == NodeType.INTERIOR_DOOR and deg[i] != 2:
+        for i, node in enumerate(self.nodes):
+            if node == NodeType.INTERIOR_DOOR and deg[i] != 2:
                 doors_to_delete.append(i)
             
         # reverse the list so that no shifting is necessary
@@ -203,8 +203,41 @@ class LayoutGraph:
 
         # ============================
         # Ensure exactly one front door is present
-        
 
+        front_doors_at = []
+        for i, node in enumerate(self.nodes):
+            if node == NodeType.FRONT_DOOR:
+                front_doors_at.append(i)
+
+        if len(front_doors_at) > 1:
+            # If more than one front doors are present, then
+            # delete the extra ones
+            for i in reversed(front_doors_at[1:]):
+                self.delete_node(i)
+
+        elif len(front_doors_at) == 0:
+            # else if none are present, then add one connected
+            # to a room (assuming at least one room is present)
+
+            # We connect the front door to the most "important"
+            # room (e.g Living room) among the available nodes.
+            # The node IDs are assigned such that the most
+            # "important" room gets the lowest id.
+
+            min_index = -1
+            for i in range(len(self.nodes)):
+                if not NodeType.is_room(self.nodes[i]):
+                    continue
+
+                if min_index == -1 or self.nodes[i] < self.nodes[min_index]:
+                    min_index = i
+
+            if min_index != -1:
+                front_door_idx = len(self.nodes)
+                self.nodes.append(NodeType.FRONT_DOOR)
+                self.edges.add((min_index, front_door_idx))
+
+        return self
 
     def draw(self):
         G = self.to_networkx()
