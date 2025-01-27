@@ -1,10 +1,20 @@
 from typing import Optional
+from dataclasses import dataclass
 
 import torch
 import torch.nn.functional as F
 
+from PIL import Image
+
+try:
+    from IPython.display import display
+    in_ipython = True
+except ImportError:
+    in_ipython = False
+
 from minimal.pretrained import model
 from minimal.layout import LayoutGraph, NodeType
+from minimal.imaging import draw_plan
 
 def _prepare_fixed_masks(masks: torch.tensor, idx_fixed: list[int]):
     """
@@ -102,8 +112,25 @@ def _make_edge_triplets(graph: LayoutGraph):
 
     return torch.tensor(triplets, dtype=torch.long)
 
+@dataclass
+class PlanMasks:
+    masks: torch.tensor
+    graph: LayoutGraph
 
-def generate_plan(graph: LayoutGraph, num_iters: int = 10):
+    def render(self, img_size=256):
+        return draw_plan(self.masks, self.graph.nodes, img_size)
+
+    def __repr__(self):
+        if in_ipython:
+            display(self.render())
+
+        return f"<PlanMasks {id(self)}>"
+
+
+def generate_plan(
+    graph: LayoutGraph,
+    num_iters: int = 10
+) -> PlanMasks:
     """
     Generate a floor plan layout
 
@@ -112,7 +139,7 @@ def generate_plan(graph: LayoutGraph, num_iters: int = 10):
         num_iters (int): Number of refinement iterations.
 
     Returns:
-        torch.Tensor: Final predicted masks of shape (R, 64, 64).
+        torch.Tensor: Final predicted masks of shape (R, 64, 64) (wrapped in a `PlanMasks`)
     """
     nodes = graph.nodes
     edges = graph.edges
@@ -137,4 +164,4 @@ def generate_plan(graph: LayoutGraph, num_iters: int = 10):
             nodes_enc, edges_enc, prev_masks=masks, idx_fixed=idx_fixed
         )
 
-    return masks
+    return PlanMasks(masks, graph)
