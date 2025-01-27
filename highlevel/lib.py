@@ -1,15 +1,22 @@
-
 from dataclasses import dataclass
 
-# import torch
-# import torch.nn.functional as F
+import torch
+import torch.nn.functional as F
 
-# nds = F.one_hot(torch.tensor([4,1]), num_classes=NodeType.NUM_NODE_TYPES).float()
+from minimal.arch import Generator
 
-# print(F.one_hot(
-#     torch.tensor([NodeType.LIVING_ROOM, NodeType.STUDY_ROOM]),
-#     num_classes=NodeType.NUM_NODE_TYPES
-# ).float())
+# -----------------------------
+
+PRETRAINED_PATH = "./checkpoints/pretrained.pth"
+
+model = Generator()
+model.load_state_dict(
+    torch.load(PRETRAINED_PATH, map_location=torch.device("cpu")), strict=True
+)
+model = model.eval()
+
+# -----------------------------
+
 
 class NodeType:
     # Node types (rooms/doors) and their IDs from HouseGAN++
@@ -42,40 +49,52 @@ class LayoutGraph:
     nodes: list[int]
     edges: list[(int, int)]
 
-def generate_plan_v2(layout_graph: LayoutGraph, num_iters: int=10):
-    nodes = layout_graph.nodes
-    edges = layout_graph.edges
 
-    nodes_enc = F.one_hot(
-        torch.tensor(nodes),
-        num_classes=NodeType.NUM_NODE_TYPES
-    ).float()
-    edges_enc = _make_edge_triplets(layout_graph)
+# -----------------------------
 
-    unique_nodes = sorted(list(set(nodes)))
+def _prepare_fixed_masks(masks, fixed_nodes):
+    num_nodes = masks.shape[0]
 
-    # Generate initial mask
-    masks = _infer_step(
-        nodes_enc, edges_enc,
-        masks=None,
-        fixed_nodes=[]
-    )
+    # (R, 64, 64)
+    label_bg = torch.zeros_like(masks)
+    masks = masks.clone()
 
-    for i in range(num_iters):
-        fixed_nodes_ids = unique_nodes[:i]
+    ind_fixed = fixed_nodes
+    ind_not_fixed = [k for k in range(num_nodes) if k not in ind_fixed],
 
-        fixed_nodes = [k for k in range(len(nodes)) if nodes[k] in fixed_nodes_ids]
+    # Label the fixed nodes
+    label_bg[ind_fixed] = 1.0
 
-        # Iteratively improve masks
-        masks = _infer_step(
-            nodes_enc, edges_enc,
-            masks=masks,
-            fixed_nodes=fixed_nodes
-        )
+    # Label the unfixed nodes, as well as clear
+    # out their mask
+    label_bg[ind_not_fixed] = 0.0
+    masks[ind_not_fixed] = -1.0
 
-    return masks
+    return torch.stack([masks, label_bg], dim=1)
 
-# --------------------
+@torch.no_grad()
+def _predict_masks(nodes_enc, edges_enc, prev_masks=None, fixed_nodes=[]):
+
+    # Input is: 
+    #       z = (R, 128)
+    # given_m = (R, 2, 64, 64)
+    # given_y = (R, 18)
+    # given_w = (E(R), 3)
+
+    num_nodes = nodes_enc.shape[0]
+
+    z = torch.randn(num_nodes, 128)
+
+    if prev_masks is None:
+        prev_masks = torch.zeros((num_nodes, 64, 64)) - 1.0
+
+    # (R, 2, 64, 64)
+    fixed_masks = _prepare_fixed_masks(prev_masks, fixed_nodes)
+
+    next_masks = model(z, fixed_masks, nodes_enc, edges_enc)
+    return next_masks.detach()
+
+# -----------------------------
 
 def _make_edge_triplets(layout_graph: LayoutGraph):
     n = len(layout_graph.nodes)
@@ -93,3 +112,40 @@ def _make_edge_triplets(layout_graph: LayoutGraph):
             ))
 
     return torch.tensor(triplets, dtype=torch.long)
+
+# -----------------------------
+
+def generate_plan_v2(layout_graph: LayoutGraph, num_iters: int=10):
+    nodes = layout_graph.nodes
+    edges = layout_graph.edges
+
+    nodes_enc = F.one_hot(
+        torch.tensor(nodes),
+        num_classes=NodeType.NUM_NODE_TYPES
+    ).float()
+    edges_enc = _make_edge_triplets(layout_graph)
+
+    unique_nodes = sorted(list(set(nodes)))
+
+    # Generate initial mask
+    masks = _predict_masks(
+        nodes_enc, edges_enc,
+        prev_masks=None,
+        fixed_nodes=[]
+    )
+
+    for i in range(num_iters):
+        fixed_nodes_ids = unique_nodes[:i]
+
+        fixed_nodes = [k for k in range(len(nodes)) if nodes[k] in fixed_nodes_ids]
+
+        # Iteratively improve masks
+        masks = _predict_masks(
+            nodes_enc, edges_enc,
+            prev_masks=masks,
+            fixed_nodes=fixed_nodes
+        )
+
+    return masks
+
+# --------------------
