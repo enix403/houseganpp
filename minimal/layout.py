@@ -1,3 +1,4 @@
+from typing import Union, Iterable
 import copy
 from dataclasses import dataclass
 import networkx as nx
@@ -83,19 +84,26 @@ NODE_NAME = {
 }
 # fmt: on
 
-@dataclass
 class LayoutGraph:
     nodes: list[int]
     """
     List of node type IDs.
     """
 
-    edges: list[tuple[int, int]]
+    edges: set[tuple[int, int]]
     """
     List of undirected edges between nodes. Each edge tuple contains index into
     the `nodes` list i.e the tuple (a, b) in this list tells
     that node[a] is a neighbour of node[b]
     """
+
+    def __init__(
+        self,
+        nodes: Iterable[int],
+        edges: Iterable[tuple[int, int]]
+    ):
+        self.nodes = list(nodes)
+        self.edges = set(edges)
 
     def clone(self):
         return LayoutGraph(
@@ -114,11 +122,11 @@ class LayoutGraph:
 
         return G
 
-    def has_edge(self, a, b):
+    def has_edge(self, a: int, b: int):
         """Check if rooms a and b are connected"""
         return (a, b) in self.edges or (b, a) in self.edges
 
-    def _find_door_between(self, a, b):
+    def _find_door_between(self, a: int, b: int):
         """Find a door connecting room a and b"""
 
         for i, node in enumerate(self.nodes):
@@ -177,4 +185,52 @@ class LayoutGraph:
 
     def _nodedict(self, func):
         return { i: func(node) for i, node in enumerate(self.nodes) }
-1
+
+
+class LayoutGraphBuilderNode:
+    type: int
+
+    def __init__(self, type: int):
+        self.type = type
+        self.index = -1
+
+
+class LayoutGraphBuilder:
+    nodes: list[LayoutGraphBuilderNode]
+    edges: list[tuple[LayoutGraphBuilderNode, LayoutGraphBuilderNode]]
+
+    def __init__(self):
+        self.nodes = []
+        self.edges = []
+
+    def add_node(self, type):
+        node = LayoutGraphBuilderNode(type)
+        self.nodes.append(node)
+        return node
+
+    def add_edge(
+        self,
+        a: Union[LayoutGraphBuilderNode, int],
+        b: Union[LayoutGraphBuilderNode, int],
+    ):
+        if isinstance(a, int):
+            a = LayoutGraphBuilderNode(a)
+
+        if isinstance(b, int):
+            b = LayoutGraphBuilderNode(b)
+
+        self.edges.append((a, b))
+
+        return (a, b)
+
+
+    def build(self) -> LayoutGraph:
+        self.nodes.sort(key=lambda n: n.type)
+
+        for i, node in enumerate(self.nodes):
+            node.index = i
+
+        return LayoutGraph(
+            map(lambda node: node.index, self.nodes),
+            map(lambda e: (e[0].index, e[1].index), self.edges)
+        )
