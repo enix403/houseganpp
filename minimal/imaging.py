@@ -83,14 +83,14 @@ def draw_plan(masks, real_nodes, im_size=256):
         dr_bkg.bitmap((0, 0), m_pil.convert("L"), fill=(r, g, b, 256))
 
         # draw contour
-        m_cv = m_lg[:, :, np.newaxis].astype("uint8")
-        ret, thresh = cv2.threshold(m_cv, 127, 255, 0)
-        contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        contours = [c for c in contours if len(contours) > 0]
-        cnt = np.zeros((256, 256, 3)).astype("uint8")
-        cv2.drawContours(cnt, contours, -1, (255, 255, 255, 255), 1)
-        cnt = Image.fromarray(cnt)
-        dr_bkg.bitmap((0, 0), cnt.convert("L"), fill=(0, 0, 0, 255))
+        # m_cv = m_lg[:, :, np.newaxis].astype("uint8")
+        # ret, thresh = cv2.threshold(m_cv, 127, 255, 0)
+        # contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        # contours = [c for c in contours if len(contours) > 0]
+        # cnt = np.zeros((256, 256, 3)).astype("uint8")
+        # cv2.drawContours(cnt, contours, -1, (255, 255, 255, 255), 1)
+        # cnt = Image.fromarray(cnt)
+        # dr_bkg.bitmap((0, 0), cnt.convert("L"), fill=(0, 0, 0, 255))
 
     return bg_img.resize((im_size, im_size))
 
