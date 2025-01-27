@@ -17,69 +17,81 @@
 import numpy as np
 import torch
 import webcolors
-import networkx as nx
 import cv2
 from PIL import Image, ImageDraw
-import matplotlib.pyplot as plt
 
 cv2.setNumThreads(0)
 
-ROOM_CLASS = {
-    "living_room": 1,
-    "kitchen": 2,
-    "bedroom": 3,
-    "bathroom": 4,
-    "balcony": 5,
-    "entrance": 6,
-    "dining room": 7,
-    "study room": 8,
-    "storage": 10,
-    "front door": 15,
-    "unknown": 16,
-    "interior_door": 17,
-}
-
 ID_COLOR = {
-    1: "#EE4D4D",
-    2: "#C67C7B",
-    3: "#FFD274",
-    4: "#BEBEBE",
-    5: "#BFE3E8",
-    6: "#7BA779",
-    7: "#E87A90",
-    8: "#FF8C69",
-    10: "#1F849B",
-    15: "#727171",
-    16: "#785A67",
-    17: "#D3A2C7",
+    0: "#EE4D4D",
+    1: "#C67C7B",
+    2: "#FFD274",
+    3: "#BEBEBE",
+    4: "#BFE3E8",
+    5: "#7BA779",
+    6: "#E87A90",
+    7: "#FF8C69",
+    9: "#1F849B",
+    14: "#727171",
+    15: "#785A67",
+    16: "#D3A2C7",
 }
 
 # ===============================
 
-def draw_plan(masks, real_nodes, im_size=256):
+def draw_plan_2(
+    masks, # torch.tensor of size (R, 64, 64) (torch.float32)
+    real_nodes,  # list[int] of length R
+    img_size=256
+):
+    masks = (masks > 0).float() * 255
+    masks = torch.nn.functional.interpolate(
+        masks.unsqueeze(1),
+        size=(img_size, img_size),
+        mode="area"
+    ).squeeze(1).byte()
+
+    plan_img = Image.new("RGB", (img_size, img_size), (255, 255, 255))  # Semitransparent background.
+    draw = ImageDraw.Draw(plan_img)
+
+    for m, nd in zip(masks, real_nodes):
+        mask_bitmap = Image.fromarray(m.cpu().numpy(), mode="L")
+        r, g, b = webcolors.hex_to_rgb(ID_COLOR[nd])
+        draw.bitmap((0, 0), mask_bitmap, fill=(r, g, b))
+
+    return plan_img
+
+
+def draw_plan(
+    masks, # torch.tensor of size (R, 64, 64) (torch.float32)
+    real_nodes, # list[int] of length R
+    im_size=256
+):
     room_imgs = masks.clone().numpy()
 
-    bg_img = Image.new(
+    plan_img = Image.new(
         "RGBA", (im_size, im_size), (255, 255, 255, 255)
     )  # Semitransparent background.
 
     for m, nd in zip(room_imgs, real_nodes):
 
-        # resize map
+        # threshold at 0
         m[m > 0] = 255
         m[m < 0] = 0
+
+        # resize
         m_lg = cv2.resize(m, (im_size, im_size), interpolation=cv2.INTER_AREA)
 
         # pick color
-        color = ID_COLOR[nd + 1]
+        color = ID_COLOR[nd]
         r, g, b = webcolors.hex_to_rgb(color)
 
         # set drawer
-        dr_bkg = ImageDraw.Draw(bg_img)
+        draw = ImageDraw.Draw(plan_img)
 
         # draw region
         m_pil = Image.fromarray(m_lg)
-        dr_bkg.bitmap((0, 0), m_pil.convert("L"), fill=(r, g, b, 256))
+        draw.bitmap((0, 0), m_pil.convert("L"), fill=(r, g, b, 256))
 
         # draw contour
         # m_cv = m_lg[:, :, np.newaxis].astype("uint8")
@@ -89,7 +101,7 @@ def draw_plan(masks, real_nodes, im_size=256):
         # cnt = np.zeros((256, 256, 3)).astype("uint8")
         # cv2.drawContours(cnt, contours, -1, (255, 255, 255, 255), 1)
         # cnt = Image.fromarray(cnt)
-        # dr_bkg.bitmap((0, 0), cnt.convert("L"), fill=(0, 0, 0, 255))
+        # draw.bitmap((0, 0), cnt.convert("L"), fill=(0, 0, 0, 255))
 
-    return bg_img.resize((im_size, im_size))
+    return plan_img.resize((im_size, im_size))
 

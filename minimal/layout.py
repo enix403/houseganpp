@@ -257,6 +257,9 @@ class LayoutGraph:
         )
 
 
+    def __repr__(self):
+        return f"LayoutGraph({self.nodes}, {list(self.edges)})"
+
     def _nodelist(self, func):
         return [func(node) for node in self.nodes]
 
