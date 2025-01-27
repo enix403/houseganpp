@@ -56,7 +56,6 @@ ID_COLOR = {
 
 # ===============================
 
-
 def draw_plan(masks, real_nodes, im_size=256):
     room_imgs = masks.clone().numpy()
 
@@ -94,93 +93,3 @@ def draw_plan(masks, real_nodes, im_size=256):
 
     return bg_img.resize((im_size, im_size))
 
-
-def draw_graph(g_true):
-    # build true graph
-    G_true = nx.Graph()
-    colors_H = []
-    node_size = []
-    edge_color = []
-    linewidths = []
-    edgecolors = []
-
-    # add nodes
-    for k, label in enumerate(g_true[0]):
-        _type = label + 1
-        if _type >= 0 and _type not in [15, 17]:
-            G_true.add_nodes_from([(k, {"label": k})])
-            colors_H.append(ID_COLOR[_type])
-            node_size.append(1000)
-            edgecolors.append("blue")
-            linewidths.append(0.0)
-
-    # add outside node
-    G_true.add_nodes_from([(-1, {"label": -1})])
-    colors_H.append("white")
-    node_size.append(750)
-    edgecolors.append("black")
-    linewidths.append(3.0)
-
-    # add edges
-    for k, m, l in g_true[1]:
-        _type_k = g_true[0][k] + 1
-        _type_l = g_true[0][l] + 1
-        if m > 0 and (_type_k not in [15, 17] and _type_l not in [15, 17]):
-            G_true.add_edges_from([(k, l)])
-            edge_color.append("#D3A2C7")
-        elif (
-            m > 0
-            and (_type_k == 15 or _type_l == 15)
-            and (_type_l != 17 and _type_k != 17)
-        ):
-            if _type_k == 15:
-                G_true.add_edges_from([(l, -1)])
-            elif _type_l == 15:
-                G_true.add_edges_from([(k, -1)])
-            edge_color.append("#727171")
-
-
-    labels = {}
-
-    for k in G_true.nodes:
-        if k != -1:
-            labels[k] = str(g_true[0][k])
-        else:
-            labels[k] = "-1"
-
-    plt.figure()
-    pos = nx.nx_agraph.graphviz_layout(G_true, prog="neato")
-    nx.draw(
-        G_true,
-        pos,
-        node_size=node_size,
-        linewidths=linewidths,
-        node_color=colors_H,
-        font_size=14,
-        font_color="black",
-        font_weight="bold",
-        edgecolors=edgecolors,
-        edge_color=edge_color,
-        width=4.0,
-        with_labels=True,
-        labels=labels
-    )
-    plt.tight_layout()
-    plt.savefig("./dump/_true_graph.jpg", format="jpg")
-    plt.close("all")
-    rgb_im = Image.open("./dump/_true_graph.jpg")
-    rgb_arr = pad_im(rgb_im).convert("RGBA")
-    return G_true, rgb_im
-
-
-# ===============================
-
-
-def pad_im(cr_im, final_size=256, bkg_color="white"):
-    new_size = int(np.max([np.max(list(cr_im.size)), final_size]))
-    padded_im = Image.new("RGBA", (new_size, new_size), "white")
-    padded_im.paste(
-        cr_im, ((new_size - cr_im.size[0]) // 2, (new_size - cr_im.size[1]) // 2)
-    )
-    padded_im = padded_im.resize((final_size, final_size), Image.ANTIALIAS)
-    return padded_im

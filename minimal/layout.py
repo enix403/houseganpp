@@ -123,7 +123,7 @@ class LayoutGraph:
         return G
 
     def has_edge(self, a: int, b: int):
-        """Check if rooms a and b are connected"""
+        """Check if nodes a and b are connected"""
         return (a, b) in self.edges or (b, a) in self.edges
 
     def _find_door_between(self, a: int, b: int):
@@ -136,15 +136,57 @@ class LayoutGraph:
 
         return -1
 
-    def ensure_door_connections(self):
-        nodes = copy.copy(self.nodes)
-        edges = copy.deepcopy(self.edges)
+    def delete_node(self, index: int):
+        del self.nodes[index]
 
+        # Shirt indexes inside the edges
+        new_edges = []
+
+        for a, b in self.edges:
+            if a == index or b == index:
+                continue
+
+            if a > index:
+                a -= 1
+
+            if b > index:
+                b -= 1
+
+            new_edges.append((a, b))
+        
+        self.edges = set(new_edges)
+
+    def _get_degrees(self):
+        deg = [0 for n in self.nodes]
+
+        for (a, b) in self.edges:
+            deg[a] += 1
+            deg[b] += 1
+
+        return deg
+
+    def correct_doors(self):
+        # ============================
+        # Remove any under/over-connected doors
+        deg = self._get_degrees()
+
+        doors_to_delete = []
+        for i in range(len(self.nodes)):
+            if self.nodes[i] == NodeType.INTERIOR_DOOR and deg[i] != 2:
+                doors_to_delete.append(i)
+            
+        # reverse the list so that no shifting is necessary
+        for i in reversed(doors_to_delete):
+            self.delete_node(i)
+
+        # ============================
+        # Add an INTERIOR_DOOR node between every pair of
+        # connected rooms nodes
         adjacent_rooms = []
 
-        for (a, b) in edges:
-            na = nodes[a]
-            nb = nodes[b]
+        for (a, b) in self.edges:
+            na = self.nodes[a]
+            nb = self.nodes[b]
 
             if NodeType.is_room(na) and NodeType.is_room(nb):
                 # Add doors only between rooms that are not
@@ -153,14 +195,16 @@ class LayoutGraph:
                     adjacent_rooms.append((a, b))
 
         for a, b in adjacent_rooms:
-            door_idx = len(nodes) 
-            nodes.append(NodeType.INTERIOR_DOOR)
+            door_idx = len(self.nodes) 
+            self.nodes.append(NodeType.INTERIOR_DOOR)
 
-            edges.add((a, door_idx))
-            edges.add((b, door_idx))
+            self.edges.add((a, door_idx))
+            self.edges.add((b, door_idx))
 
-        self.nodes = nodes
-        self.edges = edges
+        # ============================
+        # Ensure exactly one front door is present
+        
+
 
     def draw(self):
         G = self.to_networkx()
