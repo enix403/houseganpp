@@ -1,3 +1,4 @@
+import copy
 from dataclasses import dataclass
 import networkx as nx
 
@@ -72,13 +73,13 @@ NODE_NAME = {
     NodeType.BEDROOM       : "R",
     NodeType.BATHROOM      : "H",
     NodeType.BALCONY       : "A",
-    NodeType.ENTRANCE      : "/",
-    NodeType.DINING_ROOM   : "/",
-    NodeType.STUDY_ROOM    : "/",
-    NodeType.STORAGE       : "/",
-    NodeType.FRONT_DOOR    : ":F",
+    NodeType.ENTRANCE      : "E",
+    NodeType.DINING_ROOM   : "D",
+    NodeType.STUDY_ROOM    : "S",
+    NodeType.STORAGE       : "T",
+    NodeType.FRONT_DOOR    : ":f",
     NodeType.UNKNOWN       : "/",
-    NodeType.INTERIOR_DOOR : ":D",
+    NodeType.INTERIOR_DOOR : ":d",
 }
 # fmt: on
 
@@ -96,8 +97,13 @@ class LayoutGraph:
     that node[a] is a neighbour of node[b]
     """
 
+    def clone(self):
+        return LayoutGraph(
+            copy.deepcopy(self.nodes),
+            copy.deepcopy(self.edges),
+        )
+
     def to_networkx(self):
-        # nodes_tuples = list(enumerate(self.nodes))
         G = nx.Graph()
 
         G.add_nodes_from([
@@ -107,6 +113,46 @@ class LayoutGraph:
         G.add_edges_from(self.edges)
 
         return G
+
+    def has_edge(self, a, b):
+        """Check if rooms a and b are connected"""
+        return (a, b) in self.edges or (b, a) in self.edges
+
+    def _find_door_between(self, a, b):
+        """Find a door connecting room a and b"""
+
+        for i, node in enumerate(self.nodes):
+            if node == NodeType.INTERIOR_DOOR:
+                if self.has_edge(a, i) and self.has_edge(b, i):
+                    return i
+
+        return -1
+
+    def ensure_door_connections(self):
+        nodes = copy.copy(self.nodes)
+        edges = copy.deepcopy(self.edges)
+
+        adjacent_rooms = []
+
+        for (a, b) in edges:
+            na = nodes[a]
+            nb = nodes[b]
+
+            if NodeType.is_room(na) and NodeType.is_room(nb):
+                # Add doors only between rooms that are not
+                # already connected
+                if self._find_door_between(a, b) == -1:
+                    adjacent_rooms.append((a, b))
+
+        for a, b in adjacent_rooms:
+            door_idx = len(nodes) 
+            nodes.append(NodeType.INTERIOR_DOOR)
+
+            edges.append((a, door_idx))
+            edges.append((b, door_idx))
+
+        self.nodes = nodes
+        self.edges = edges
 
     def draw(self):
         G = self.to_networkx()
@@ -131,3 +177,4 @@ class LayoutGraph:
 
     def _nodedict(self, func):
         return { i: func(node) for i, node in enumerate(self.nodes) }
+1
