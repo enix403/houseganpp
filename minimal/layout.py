@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import networkx as nx
 
 class NodeType:
     # Node types (rooms/doors) and their IDs from HouseGAN++
@@ -95,4 +96,38 @@ class LayoutGraph:
     that node[a] is a neighbour of node[b]
     """
 
+    def to_networkx(self):
+        # nodes_tuples = list(enumerate(self.nodes))
+        G = nx.Graph()
 
+        G.add_nodes_from([
+            (i, { "node_type": n })
+            for i, n in enumerate(self.nodes)
+        ])
+        G.add_edges_from(self.edges)
+
+        return G
+
+
+
+"""
+def nodelist(G, func):
+    return [func(node) for node in G.nodes]
+
+def nodedict(G, func):
+    return { node: func(node) for node in G.nodes }
+
+nx.draw(
+    G,
+    nx.kamada_kawai_layout(G),
+    node_size=1000,
+    node_color=nodelist(G, lambda n: n.color),
+    edge_color="#D3A2C7",
+    font_color="black",
+    font_weight="bold",
+    font_size=14,
+    width=2.0,
+    with_labels=True,
+    labels=nodedict(G, lambda n: n.name)
+)
+"""
